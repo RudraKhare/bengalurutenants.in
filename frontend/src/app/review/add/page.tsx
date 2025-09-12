@@ -139,7 +139,7 @@ export default function AddReviewPage() {
                     <button
                       key={star}
                       type="button"
-                      className={`w-6 h-6 ${star <= formData[key as keyof typeof formData] ? 'text-yellow-400' : 'text-gray-300'}`}
+                      className={`w-6 h-6 ${star <= (formData[key as keyof typeof formData] as number) ? 'text-yellow-400' : 'text-gray-300'}`}
                       onClick={() => handleInputChange(key, star)}
                     >
                       <svg className="w-full h-full fill-current" viewBox="0 0 20 20">
@@ -148,7 +148,7 @@ export default function AddReviewPage() {
                     </button>
                   ))}
                   <span className="text-sm text-gray-600 ml-2">
-                    {formData[key as keyof typeof formData]}/5
+                    {formData[key as keyof typeof formData] as number}/5
                   </span>
                 </div>
               </div>
