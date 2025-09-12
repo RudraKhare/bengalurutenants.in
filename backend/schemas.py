@@ -1,6 +1,9 @@
 """
 Pydantic schemas for API request/response validation.
 Defines data shapes for serialization between API and database.
+What data the API accepts (request validation)
+What data the API returns (response formatting)
+Data validation rules (type checking, constraints)
 """
 
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
@@ -8,6 +11,62 @@ from typing import Optional, List
 from datetime import datetime
 from models import UserRole, VerificationMethod, VerificationStatus
 
+
+
+"""Before (Plain Python Class):
+class User:
+    def __init__(self, email, phone=None):
+        self.email = email  # No validation!
+        self.phone = phone  # Could be anything!
+
+# Dangerous - no validation
+user = User(email="invalid-email", phone=123456)  # Should phone be int or str?
+
+After (Pydantic BaseModel):
+class UserCreate(BaseModel):
+    email: EmailStr                    # Must be valid email format
+    phone: Optional[str] = None        # Must be string or None
+
+# Safe - automatic validation
+user = UserCreate(email="test@example.com", phone="123-456-7890")  # ✅ Valid
+user = UserCreate(email="invalid", phone=123)                     # ❌ Validation error
+
+Real-World Example - API Request Processing:
+# When this JSON comes from frontend:
+{
+    "email": "user@example.com",
+    "phone": "123-456-7890",
+    "role": "tenant"
+}
+
+# Pydantic automatically:
+1. Validates email format ✅
+2. Checks phone is string ✅  
+3. Converts role string to UserRole enum ✅
+4. Creates UserCreate object ✅
+
+🛡️ Validation Magic in Action:
+
+class PropertyCreate(BaseModel):
+    address: str = Field(..., min_length=10, max_length=500)
+    lat: Optional[float] = Field(None, ge=-90, le=90)  # Latitude range
+    lng: Optional[float] = Field(None, ge=-180, le=180)  # Longitude range
+
+What BaseModel does automatically:
+# Valid input
+property_data = PropertyCreate(
+    address="123 Main Street, Bengaluru",
+    lat=12.9716,  # Valid Bengaluru latitude
+    lng=77.5946   # Valid Bengaluru longitude
+)  # ✅ Success
+
+# Invalid input  
+property_data = PropertyCreate(
+    address="Too short",        # ❌ Less than 10 characters
+    lat=200,                   # ❌ Invalid latitude (>90)
+    lng=-300                   # ❌ Invalid longitude (<-180)
+)  # ❌ Pydantic raises ValidationError with detailed messages
+"""
 # Base schemas with common fields
 class TimestampMixin(BaseModel):
     """Common timestamp fields for all models."""

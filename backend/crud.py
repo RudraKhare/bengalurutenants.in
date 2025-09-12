@@ -13,6 +13,16 @@ import schemas
 def get_user(db: Session, user_id: int) -> Optional[models.User]:
     """Get a user by ID."""
     return db.query(models.User).filter(models.User.id == user_id).first()
+"""
+Without CRUD separation (Bad):
+
+@app.get("/users/{user_id}")
+def get_user_endpoint(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()  # Database logic mixed with API logic
+    if not user:
+        raise HTTPException(404, "User not found")
+    return user
+"""
 
 def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
     """Get a user by email address."""
