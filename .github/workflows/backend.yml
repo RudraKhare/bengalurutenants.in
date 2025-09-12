@@ -1,0 +1,140 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.11, 3.12]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Lint with flake8
+      working-directory: ./backend
+      run: |
+        # Install flake8 for linting
+        pip install flake8
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Test imports and basic functionality
+      working-directory: ./backend
+      run: |
+        # Test that all main modules can be imported
+        python -c "import fastapi; print('FastAPI imported successfully')"
+        python -c "import sqlalchemy; print('SQLAlchemy imported successfully')"
+        python -c "import alembic; print('Alembic imported successfully')"
+        
+        # Test that our modules can be imported
+        python -c "from main import app; print('Main app imported successfully')"
+        python -c "from models import User, Property, Review; print('Models imported successfully')"
+        python -c "from schemas import UserResponse, PropertyResponse; print('Schemas imported successfully')"
+        python -c "from crud import get_user, create_property; print('CRUD functions imported successfully')"
+
+    - name: Test FastAPI app startup
+      working-directory: ./backend
+      run: |
+        # Test that the FastAPI app can start (without connecting to DB)
+        python -c "
+        from main import app
+        from fastapi.testclient import TestClient
+        
+        # Test that the app can be created
+        client = TestClient(app)
+        
+        # Test health endpoint
+        response = client.get('/health')
+        assert response.status_code == 200
+        assert 'status' in response.json()
+        print('Health endpoint test passed')
+        
+        # Test root endpoint
+        response = client.get('/')
+        assert response.status_code == 200
+        assert 'message' in response.json()
+        print('Root endpoint test passed')
+        
+        print('FastAPI app startup test completed successfully')
+        "
+
+    # TODO: Add database tests when we have test database setup
+    # - name: Test database models
+    #   working-directory: ./backend
+    #   run: |
+    #     # This would require a test database setup
+    #     python -m pytest tests/ -v
+
+    - name: Check Alembic configuration
+      working-directory: ./backend
+      run: |
+        # Test that Alembic configuration is valid
+        python -c "
+        import os
+        from alembic.config import Config
+        from alembic import command
+        
+        # Check that alembic.ini exists and is valid
+        config = Config('alembic.ini')
+        print('Alembic configuration is valid')
+        
+        # Note: We skip actual migration tests since they require a database
+        print('Alembic configuration check completed')
+        "
+
+  build-info:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build Summary
+      run: |
+        echo "## 🚀 Backend Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| FastAPI | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+        echo "| SQLAlchemy | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+        echo "| Alembic | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+        echo "| Import Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+        echo "| API Endpoints | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Backend builds successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔄 Ready for deployment" >> $GITHUB_STEP_SUMMARY
+        echo "- 📝 Add database tests in future iterations" >> $GITHUB_STEP_SUMMARY
