@@ -16,7 +16,7 @@ export default function ReviewForm({
   onCancel 
 }: ReviewFormProps) {
   const [rating, setRating] = useState(0);
-  const [body, setBody] = useState('');
+  const [comment, setComment] = useState(''); // Changed from body to match database field name
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -29,7 +29,7 @@ export default function ReviewForm({
       return;
     }
     
-    if (body.trim().length < 10) {
+    if (comment.trim().length < 10) {
       setError('Review must be at least 10 characters long');
       return;
     }
@@ -54,7 +54,7 @@ export default function ReviewForm({
         body: JSON.stringify({
           property_id: propertyId,
           rating,
-          body: body.trim(),
+          comment: comment.trim(),
         }),
       });
 
@@ -66,7 +66,7 @@ export default function ReviewForm({
       const newReview = await response.json();
       setSuccess(true);
       setRating(0);
-      setBody('');
+      setComment('');
       
       // Call the appropriate callback
       if (onSubmit) {
@@ -135,20 +135,20 @@ export default function ReviewForm({
 
         {/* Review Text */}
         <div>
-          <label htmlFor="review-body" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="review-comment" className="block text-sm font-medium text-gray-700 mb-2">
             Your Review *
           </label>
           <textarea
-            id="review-body"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
+            id="review-comment"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
             rows={4}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Share your experience about this property..."
             required
           />
           <p className="mt-1 text-xs text-gray-500">
-            Minimum 10 characters. Current: {body.length}
+            Minimum 10 characters. Current: {comment.length}
           </p>
         </div>
 
@@ -177,7 +177,7 @@ export default function ReviewForm({
           )}
           <button
             type="submit"
-            disabled={isSubmitting || rating === 0 || body.trim().length < 10}
+            disabled={isSubmitting || rating === 0 || comment.trim().length < 10}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isSubmitting ? (

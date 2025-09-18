@@ -1,12 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/useAuth'
+import { useRouter } from 'next/navigation'
+import PhotoUpload from '@/components/PhotoUpload'
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 export default function AddReviewPage() {
+  const { isAuthenticated, token } = useAuth();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAuthRedirect, setShowAuthRedirect] = useState(false);
+  
   const [formData, setFormData] = useState({
     propertyAddress: '',
-    city: 'Bengaluru',
+    city: 'Bengaluru', // Keep city as fixed to Bengaluru for now
     area: '',
+    propertyType: 'FLAT_APARTMENT', // New property type field
     rating: 5,
     comment: '',
     cleanliness: 5,
@@ -14,13 +25,149 @@ export default function AddReviewPage() {
     location: 5,
     valueForMoney: 5,
     verificationMethod: 'rental_agreement',
-    agreeToTerms: false
-  })
+    agreeToTerms: false,
+    photoKeys: [] as string[] // Store uploaded photo object keys
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Handle authentication redirect
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowAuthRedirect(true);
+      router.push('/auth');
+    } else {
+      setShowAuthRedirect(false);
+    }
+  }, [isAuthenticated, router]);
+  
+  // Show redirect message if not authenticated
+  if (showAuthRedirect) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p>Please log in to submit a review. Redirecting...</p>
+      </div>
+    );
+  }
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Submit review to API
-    console.log('Review submitted:', formData)
+    
+    if (isSubmitting) return
+    
+    // Create a toast notification to show progress
+    const loadingToast = toast.loading('Creating property listing...')
+    
+    try {
+      setIsSubmitting(true)
+      
+      // Make sure we have a token before proceeding
+      if (!token) {
+        throw new Error("Authentication token is missing. Please log in again.");
+      }
+      
+      // First, create the property if it doesn't exist yet
+      // We need to create a property first since the review requires a property_id
+      // Format the address with area included
+      const fullAddress = `${formData.propertyAddress}${formData.area ? ', ' + formData.area : ''}`.trim();
+      
+      const propertyResponse = await fetch(buildApiUrl(API_ENDPOINTS.PROPERTIES.CREATE), {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify({
+          address: fullAddress,
+          city: formData.city,
+          area: formData.area,
+          property_type: formData.propertyType // Add property type to property creation
+        })
+      });
+
+      if (!propertyResponse.ok) {
+        const errorText = await propertyResponse.text();
+        let errorData = {};
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          console.error("Failed to parse error response:", errorText);
+        }
+        
+        console.error("Property creation error details:", errorData);
+        throw new Error(
+          (errorData as any).detail || 
+          (errorData as any).message || 
+          `Error creating property: ${propertyResponse.status} ${propertyResponse.statusText}`
+        );
+      }
+
+      const propertyData = await propertyResponse.json();
+      const propertyId = propertyData.id;
+
+      // Format all the information into a detailed review body
+      const reviewBody = `
+Overall Rating: ${formData.rating}/5
+Cleanliness: ${formData.cleanliness}/5
+Landlord Rating: ${formData.landlordRating}/5
+Location: ${formData.location}/5
+Value For Money: ${formData.valueForMoney}/5
+
+${formData.comment || 'No additional comments provided.'}
+      `.trim();
+      
+      // Update toast message
+      toast.loading('Submitting your review...', { id: loadingToast })
+      
+      // Now prepare the review data using the new property_id
+      const reviewData = {
+        property_id: propertyId,
+        property_type: formData.propertyType, // Include user-confirmed property type
+        rating: formData.rating,
+        comment: reviewBody, 
+        // Include photo keys only if there are any
+        ...(formData.photoKeys.length > 0 ? { photo_keys: formData.photoKeys.join(',') } : {})
+      }
+      
+      console.log('Submitting review data:', reviewData)
+      
+      // Submit to backend API
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.REVIEWS.CREATE), {
+        method: 'POST',
+        headers: getAuthHeaders(token),
+        body: JSON.stringify(reviewData)
+      })
+      
+      // Handle response
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorData = {};
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          console.error("Failed to parse error response:", errorText);
+        }
+        
+        console.error("Review creation error details:", errorData);
+        throw new Error(
+          (errorData as any).detail || 
+          (errorData as any).message || 
+          `Error: ${response.status} ${response.statusText}`
+        );
+      }
+      
+      const result = await response.json()
+      console.log('Review submitted successfully:', result)
+      
+      // Show success message
+      toast.dismiss(loadingToast)
+      toast.success('Review submitted successfully!')
+      
+      // Redirect to home
+      router.push('/');
+      
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      toast.dismiss(loadingToast);
+      toast.error(`Failed to submit review: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const handleInputChange = (field: string, value: any) => {
@@ -29,6 +176,13 @@ export default function AddReviewPage() {
       [field]: value
     }))
   }
+
+  const handlePhotoUpload = (objectKeys: string[]) => {
+    setFormData(prev => ({
+      ...prev,
+      photoKeys: objectKeys
+    }));
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -65,16 +219,17 @@ export default function AddReviewPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  City *
+                  Property Type *
                 </label>
                 <select
                   className="input-field"
-                  value={formData.city}
-                  onChange={(e) => handleInputChange('city', e.target.value)}
+                  value={formData.propertyType}
+                  onChange={(e) => handleInputChange('propertyType', e.target.value)}
                   required
                 >
-                  <option value="Bengaluru">Bengaluru</option>
-                  {/* TODO: Add more cities later */}
+                  <option value="FLAT_APARTMENT">Flat/Apartment</option>
+                  <option value="VILLA_HOUSE">Villa/House</option>
+                  <option value="PG_HOSTEL">PG/Hostel</option>
                 </select>
               </div>
               
@@ -177,6 +332,29 @@ export default function AddReviewPage() {
           </div>
         </div>
 
+        {/* Photo Upload - Day 3 Feature */}
+        <div className="card">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Add Photos (Optional)</h2>
+          <p className="text-gray-600 mb-4">
+            Upload photos to support your review. Photos help other tenants see the actual condition of the property.
+          </p>
+          
+          <PhotoUpload
+            fileType="review"
+            onUploadComplete={handlePhotoUpload}
+            maxFiles={5}
+            className="mb-4"
+          />
+          
+          {formData.photoKeys.length > 0 && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-sm text-green-800">
+                ✅ {formData.photoKeys.length} photo(s) uploaded successfully
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Verification */}
         <div className="card">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Verification (Optional)</h2>
@@ -261,9 +439,9 @@ export default function AddReviewPage() {
               <button
                 type="submit"
                 className="btn-primary"
-                disabled={!formData.agreeToTerms}
+                disabled={!formData.agreeToTerms || isSubmitting}
               >
-                Submit Review
+                {isSubmitting ? 'Submitting...' : 'Submit Review'}
               </button>
             </div>
           </div>

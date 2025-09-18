@@ -8,7 +8,7 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from .routers import auth, properties, reviews
+from .routers import auth, properties, reviews, uploads
 from .db import engine
 from .models import Base
 
@@ -72,6 +72,7 @@ else:
 app.include_router(auth.router)
 app.include_router(properties.router)
 app.include_router(reviews.router)
+app.include_router(uploads.router)  # Day 3: Photo upload routes
 
 @app.get("/", tags=["health"])
 async def root():

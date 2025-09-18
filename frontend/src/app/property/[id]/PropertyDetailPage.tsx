@@ -1,24 +1,28 @@
 'use client';
 
 import { useState } from 'react';
-import ReviewForm from '../../../components/ReviewForm';
+import ReviewForm from '@/components/ReviewForm';
+import PhotoViewer from '@/components/PhotoViewer';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Property {
   id: number;
   address: string;
   city: string;
+  area?: string;
   lat?: number;
-  lon?: number;
-  rent_amount?: number;
-  deposit_amount?: number;
-  property_type?: string;
-  bhk_count?: number;
-  square_feet?: number;
-  description?: string;
-  amenities?: string;
+  lng?: number; // Changed from 'lon' to match database field name
+  photo_keys?: string; // Day 3: Comma-separated R2 object keys (not in database but kept for frontend)
   created_at: string;
   avg_rating?: number;
   review_count: number;
+  // Add missing property fields
+  property_type?: string;
+  rent_amount?: number;
+  deposit_amount?: number;
+  square_feet?: number;
+  description?: string;
+  amenities?: string;
 }
 
 interface Review {
@@ -26,8 +30,9 @@ interface Review {
   property_id: number;
   user_id: number;
   rating: number;
-  body: string;
+  comment: string; // Changed from 'body' to match database field name
   verification_level: string;
+  photo_keys?: string; // Day 3: Review photos (not in database, but kept for frontend)
   created_at: string;
 }
 
@@ -42,15 +47,9 @@ export default function PropertyDetailPage({
   initialReviews, 
   totalReviews 
 }: PropertyDetailPageProps) {
+  const { token, isAuthenticated = !!token } = useAuth();
   const [reviews, setReviews] = useState(initialReviews);
   const [showReviewForm, setShowReviewForm] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  // Check if user is logged in
-  useState(() => {
-    const token = localStorage.getItem('access_token');
-    setIsLoggedIn(!!token);
-  });
 
   const handleReviewSubmitted = (newReview: Review) => {
     setReviews([newReview, ...reviews]);
@@ -170,26 +169,60 @@ export default function PropertyDetailPage({
                 <p className="text-gray-700">{property.amenities}</p>
               </div>
             )}
+
+            {/* Property Photos */}
+            {property.photo_keys ? (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Property Photos</h3>
+                <PhotoViewer 
+                  objectKeys={property.photo_keys} 
+                  className="rounded-lg"
+                  maxThumbnails={6}
+                />
+              </div>
+            ) : (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Property Photos</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((index) => (
+                    <div key={index} className="aspect-w-4 aspect-h-3 rounded-lg overflow-hidden bg-gray-200">
+                      <img 
+                        src={`https://picsum.photos/400/300?random=${property.id}${index}`}
+                        alt={`Property placeholder ${index}`}
+                        className="w-full h-48 object-cover hover:scale-105 transition-transform duration-200"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = `https://via.placeholder.com/400x300/e5e7eb/6b7280?text=Property+Photo+${index}`;
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-4 text-sm text-gray-500 text-center">
+                  Placeholder images shown. Actual property photos will be displayed when uploaded by the property owner.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
           <div className="mt-6 lg:mt-0 lg:ml-6 flex flex-col space-y-3">
-            {isLoggedIn ? (
+            {isAuthenticated ? (
               <button 
                 onClick={() => setShowReviewForm(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-200"
+                className="btn-primary"
               >
                 Write Review
               </button>
             ) : (
               <a 
                 href="/auth/login"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-200 text-center"
+                className="btn-primary text-center"
               >
                 Login to Review
               </a>
             )}
-            <button className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md transition duration-200">
+            <button className="btn-secondary">
               Save Property
             </button>
           </div>
@@ -214,7 +247,7 @@ export default function PropertyDetailPage({
               </div>
               <ReviewForm 
                 propertyId={property.id}
-                onSubmit={handleReviewSubmitted}
+                onReviewSubmitted={handleReviewSubmitted}
                 onCancel={() => setShowReviewForm(false)}
               />
             </div>
@@ -241,17 +274,17 @@ export default function PropertyDetailPage({
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
               <p className="text-gray-600 mb-4">Be the first to review this property!</p>
-              {isLoggedIn ? (
+              {isAuthenticated ? (
                 <button 
                   onClick={() => setShowReviewForm(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-200"
+                  className="btn-primary"
                 >
                   Write First Review
                 </button>
               ) : (
                 <a 
                   href="/auth/login"
-                  className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-200"
+                  className="btn-primary inline-block"
                 >
                   Login to Review
                 </a>
@@ -278,8 +311,20 @@ export default function PropertyDetailPage({
                     {renderStars(review.rating)}
                   </div>
                   
-                  {review.body && (
-                    <p className="text-gray-700">{review.body}</p>
+                  {review.comment && (
+                    <p className="text-gray-700 mb-4">{review.comment}</p>
+                  )}
+
+                  {/* Review Photos */}
+                  {review.photo_keys && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Review Photos</h4>
+                      <PhotoViewer 
+                        objectKeys={review.photo_keys} 
+                        className="rounded"
+                        maxThumbnails={4}
+                      />
+                    </div>
                   )}
                 </div>
               ))}
@@ -316,10 +361,10 @@ export default function PropertyDetailPage({
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Property</h3>
             <div className="space-y-3">
-              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-200">
+              <button className="w-full btn-primary">
                 View Contact Details
               </button>
-              <button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md transition duration-200">
+              <button className="w-full btn-secondary">
                 Schedule Visit
               </button>
               <p className="text-xs text-gray-500 text-center">
@@ -329,14 +374,14 @@ export default function PropertyDetailPage({
           </div>
 
           {/* Map Placeholder */}
-          {property.lat && property.lon && (
+          {property.lat && property.lng && (
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Location</h3>
               <div className="w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center">
                 <span className="text-gray-500">Map will be loaded here</span>
               </div>
               <p className="text-xs text-gray-500 text-center mt-2">
-                Coordinates: {property.lat}, {property.lon}
+                Coordinates: {property.lat}, {property.lng}
               </p>
             </div>
           )}

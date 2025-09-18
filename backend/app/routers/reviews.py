@@ -10,7 +10,7 @@ from sqlalchemy import and_
 
 from ..db import get_db
 from ..models import Review, Property, User
-from ..schemas import ReviewCreate, ReviewOut, ReviewListResponse
+from ..schemas import ReviewCreate, ReviewOut, ReviewListResponse, PropertyOut
 from ..dependencies import get_current_user, get_current_user_optional
 
 router = APIRouter(prefix="/api/v1/reviews", tags=["reviews"])
@@ -74,6 +74,135 @@ async def list_reviews(
         skip=skip,
         limit=limit
     )
+
+@router.get("/my-reviews", response_model=ReviewListResponse)
+async def get_my_reviews(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0, description="Number of reviews to skip (pagination)"),
+    limit: int = Query(50, ge=1, le=100, description="Number of reviews to return"),
+    current_user: User = Depends(get_current_user)
+) -> ReviewListResponse:
+    """
+    Get all reviews created by the current authenticated user.
+    
+    This endpoint allows users to see their review history in a dashboard.
+    Reviews are returned in descending order by creation date (newest first).
+    
+    Includes:
+    - All review details (rating, comment, property_type, etc.)
+    - Associated property information through relationships
+    - Verification status and vote counts
+    
+    Args:
+        db: Database session
+        skip: Pagination offset (default: 0)
+        limit: Maximum results per page (default: 50, max: 100)
+        current_user: Authenticated user from JWT token
+        
+    Returns:
+        List of user's reviews with associated property data
+        
+    Raises:
+        401: If user is not authenticated
+    """
+    try:
+        # Import relationship loading
+        from sqlalchemy.orm import joinedload
+        
+        # Query reviews for the current user only with property relationship loaded
+        print(f"Querying reviews for user ID: {current_user.id}")
+        query = db.query(Review).options(joinedload(Review.property)).filter(Review.user_id == current_user.id)
+        
+        # Order by newest first for dashboard view
+        query = query.order_by(Review.created_at.desc())
+        
+        # Get total count for pagination
+        total_count = query.count()
+        print(f"Found {total_count} reviews for user")
+        
+        # Apply pagination
+        reviews = query.offset(skip).limit(limit).all()
+        print(f"Retrieved {len(reviews)} reviews after pagination")
+        
+        # Try to serialize the response
+        response = ReviewListResponse(
+            reviews=reviews,
+            total=total_count,
+            skip=skip,
+            limit=limit
+        )
+        print(f"Successfully created response")
+        return response
+        
+    except Exception as e:
+        print(f"Error fetching user reviews: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch user reviews: {str(e)}"
+        )
+
+@router.get("/my-properties", response_model=List[dict])
+async def get_my_properties(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> List[dict]:
+    """
+    Get all properties owned by the current authenticated user.
+    
+    This endpoint allows users to see properties they've created/listed.
+    Useful for landlord dashboard or property management views.
+    
+    Args:
+        db: Database session
+        current_user: Authenticated user from JWT token
+        
+    Returns:
+        List of properties owned by the user with review statistics
+        
+    Raises:
+        401: If user is not authenticated
+    """
+    try:
+        # Import Property model here to avoid circular imports
+        from ..models import Property
+        
+        print(f"Querying properties for user ID: {current_user.id}")
+        
+        # Query properties owned by current user
+        properties = db.query(Property).filter(
+            Property.property_owner_id == current_user.id
+        ).order_by(Property.created_at.desc()).all()
+        
+        print(f"Found {len(properties)} properties for user")
+        
+        # Convert to dict with additional stats
+        result = []
+        for prop in properties:
+            prop_dict = {
+                "id": prop.id,
+                "address": prop.address,
+                "city": prop.city,
+                "area": prop.area,
+                "property_type": prop.property_type.value if prop.property_type else None,
+                "avg_rating": prop.avg_rating,
+                "review_count": prop.review_count,
+                "created_at": prop.created_at.isoformat() if prop.created_at else None
+            }
+            result.append(prop_dict)
+        
+        print(f"Successfully created response with {len(result)} properties")
+        return result
+        
+    except Exception as e:
+        print(f"Error fetching user properties: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch user properties: {str(e)}"
+        )
 
 @router.get("/{review_id}", response_model=ReviewOut)
 async def get_review(
@@ -147,16 +276,44 @@ async def create_review(
         )
     
     try:
-        # Create review instance with current user as author
+        # Create review instance with the columns that exist in the database
+        # Columns: id, user_id, property_id, rating, comment, property_type, verification_level, upvotes, downvotes, created_at
         review = Review(
-            **review_data.model_dump(),
-            user_id=current_user.id
+            user_id=current_user.id,
+            property_id=review_data.property_id,
+            rating=review_data.rating,
+            comment=review_data.comment,
+            property_type=review_data.property_type,  # User-confirmed property type
+            verification_level="unverified",  # Default value
+            upvotes=0,  # Using plural name to match database column
+            downvotes=0  # Using plural name to match database column
         )
         
         # Add to session and commit
         db.add(review)
         db.commit()
         db.refresh(review)
+        
+        # Handle photo keys if provided - attach photos to the property
+        if hasattr(review_data, 'photo_keys') and review_data.photo_keys:
+            print(f"📸 Processing photo keys for property {property_obj.id}: {review_data.photo_keys}")
+            
+            # Get existing property photo keys
+            existing_keys = []
+            if property_obj.photo_keys:
+                existing_keys = [key.strip() for key in property_obj.photo_keys.split(',') if key.strip()]
+            
+            # Get new photo keys from review
+            new_keys = [key.strip() for key in review_data.photo_keys.split(',') if key.strip()]
+            
+            # Combine and deduplicate keys (avoid duplicates)
+            all_keys = existing_keys + [key for key in new_keys if key not in existing_keys]
+            
+            # Update property with combined photo keys
+            property_obj.photo_keys = ','.join(all_keys)
+            db.commit()
+            
+            print(f"✅ Property {property_obj.id} updated with {len(all_keys)} photos: {property_obj.photo_keys}")
         
         return review
         
@@ -221,9 +378,9 @@ async def update_review(
         )
     
     try:
-        # Update rating and body (property_id remains unchanged)
+        # Update rating and comment (property_id remains unchanged)
         review.rating = review_data.rating
-        review.body = review_data.body
+        review.comment = review_data.comment
         
         db.commit()
         db.refresh(review)

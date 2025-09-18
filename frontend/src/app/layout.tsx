@@ -1,6 +1,9 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { AuthProvider } from '@/hooks/useAuth'
+import { Toaster } from 'react-hot-toast'
+import { Navigation } from '@/components'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -18,30 +21,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="min-h-screen bg-gray-50">
-          {/* Navigation header - TODO: Create proper navigation component */}
-          <nav className="bg-white shadow-sm border-b border-gray-200">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between h-16">
-                <div className="flex items-center">
-                  <a href="/" className="flex-shrink-0">
-                    <h1 className="text-xl font-bold text-primary-600">
-                      Bengaluru Tenants
-                    </h1>
-                  </a>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <a href="/review/add" className="btn-primary">
-                    Add Review
-                  </a>
-                  {/* TODO: Add user authentication links */}
-                  <a href="/login" className="text-gray-600 hover:text-gray-800">
-                    Login
-                  </a>
-                </div>
-              </div>
-            </div>
-          </nav>
+        <AuthProvider>
+          <div className="min-h-screen bg-gray-50">
+          <Toaster position="top-center" toastOptions={{ duration: 5000 }} />
+          <Navigation />
 
           {/* Main content */}
           <main className="flex-1">
@@ -57,7 +40,8 @@ export default function RootLayout({
               </div>
             </div>
           </footer>
-        </div>
+          </div>
+        </AuthProvider>
       </body>
     </html>
   )

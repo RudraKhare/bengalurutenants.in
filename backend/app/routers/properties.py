@@ -9,9 +9,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 
 from ..db import get_db
-from ..models import Property, User
-from ..schemas import PropertyCreate, PropertyOut, PropertyListResponse
+from ..models import Property, User, PropertyType
+from ..schemas import PropertyCreate, PropertyOut, PropertyListResponse, PhotoUploadData
 from ..dependencies import get_current_user, get_current_user_optional
+from ..services.r2_client import r2_client
 
 router = APIRouter(prefix="/api/v1/properties", tags=["properties"])
 
@@ -20,6 +21,7 @@ async def list_properties(
     db: Session = Depends(get_db),
     skip: int = Query(0, ge=0, description="Number of properties to skip (pagination)"),
     limit: int = Query(20, ge=1, le=100, description="Number of properties to return"),
+    property_type: Optional[PropertyType] = Query(None, description="Filter by property type"),
     latitude: Optional[float] = Query(None, description="Center latitude for geographic search"),
     longitude: Optional[float] = Query(None, description="Center longitude for geographic search"),
     radius_km: Optional[float] = Query(None, ge=0.1, le=50, description="Search radius in kilometers"),
@@ -57,6 +59,10 @@ async def list_properties(
     # Start with base query
     query = db.query(Property)
     
+    # Apply property type filtering
+    if property_type is not None:
+        query = query.filter(Property.property_type == property_type)
+    
     # Apply geographic filtering if coordinates provided
     if latitude is not None and longitude is not None:
         if radius_km is None:
@@ -68,7 +74,7 @@ async def list_properties(
         lat1_rad = func.radians(latitude)
         lat2_rad = func.radians(Property.lat)
         delta_lat = func.radians(Property.lat - latitude)
-        delta_lon = func.radians(Property.lon - longitude)
+        delta_lon = func.radians(Property.lng - longitude)
         
         # Haversine calculation components
         a = (func.sin(delta_lat / 2) * func.sin(delta_lat / 2) +
@@ -161,10 +167,26 @@ async def create_property(
     """
     
     try:
-        # Create property instance with current user as owner
+        # Debug: Log the received property data
+        print(f"🔍 Creating property with data:")
+        print(f"   Address: {property_data.address}")
+        print(f"   City: {property_data.city}")
+        print(f"   Area: {property_data.area}")
+        print(f"   Property Type: {property_data.property_type}")
+        print(f"   User ID: {current_user.id}")
+        
+        # Create property instance with all available fields
         property_obj = Property(
-            **property_data.model_dump(),
-            owner_id=current_user.id
+            address=property_data.address,
+            city=property_data.city,
+            area=property_data.area,
+            property_type=property_data.property_type,  # Include property type from user selection
+            lat=property_data.lat,
+            lng=property_data.lng,
+            photo_keys=property_data.photo_keys,  # May be None for new properties
+            property_owner_id=current_user.id,    # Set the owner to current user
+            avg_rating=0.0,  # Default for new properties
+            review_count=0   # Default for new properties
         )
         
         # Add to session and commit
@@ -219,7 +241,7 @@ async def update_property(
         )
     
     # Authorization check - only owner can update
-    if property_obj.owner_id != current_user.id:
+    if property_obj.property_owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only update your own properties"
@@ -279,7 +301,7 @@ async def delete_property(
         )
     
     # Authorization check - only owner can delete
-    if property_obj.owner_id != current_user.id:
+    if property_obj.property_owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only delete your own properties"
@@ -299,3 +321,214 @@ async def delete_property(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete property"
         )
+
+
+@router.post("/{property_id}/photos")
+async def add_property_photo(
+    property_id: int,
+    upload_data: PhotoUploadData,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Add a photo to a property.
+    
+    This endpoint is called after a photo has been successfully uploaded to R2.
+    It updates the property's photo_keys field to include the new photo.
+    
+    Args:
+        property_id: ID of the property to add the photo to
+        upload_data: Contains the R2 object key for the uploaded photo
+        current_user: Authenticated user (must be property owner or admin)
+        
+    Returns:
+        Success message with the added photo key
+        
+    Raises:
+        HTTPException 404: Property not found
+        HTTPException 403: Not authorized to update this property
+    """
+    
+    # Find the property
+    property_obj = db.query(Property).filter(Property.id == property_id).first()
+    if not property_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Property not found"
+        )
+    
+    # Permission check - only property owner or admin can add photos
+    if (property_obj.property_owner_id != current_user.id and 
+        current_user.role.value != "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this property"
+        )
+    
+    try:
+        # Update the photo_keys field
+        photo_key = upload_data.photo_key
+        
+        if property_obj.photo_keys:
+            # If there are existing photos, append with comma
+            # Check if this key already exists to prevent duplicates
+            existing_keys = property_obj.photo_keys.split(',')
+            if photo_key not in existing_keys:
+                property_obj.photo_keys = f"{property_obj.photo_keys},{photo_key}"
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Photo already exists for this property"
+                )
+        else:
+            # If this is the first photo
+            property_obj.photo_keys = photo_key
+        
+        # Save to database
+        db.commit()
+        
+        return {
+            "message": "Photo added successfully", 
+            "photo_key": photo_key,
+            "total_photos": len(property_obj.photo_keys.split(','))
+        }
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error adding photo to property {property_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add photo to property"
+        )
+
+
+@router.delete("/{property_id}/photos/{photo_key:path}")
+async def remove_property_photo(
+    property_id: int, 
+    photo_key: str, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Remove a photo from a property.
+    
+    This endpoint removes a photo key from the property's photo_keys field
+    and also deletes the actual file from R2 storage.
+    
+    Args:
+        property_id: ID of the property to remove the photo from
+        photo_key: The R2 object key of the photo to remove (URL encoded)
+        current_user: Authenticated user (must be property owner or admin)
+        
+    Returns:
+        Success message with the removed photo key
+        
+    Raises:
+        HTTPException 404: Property or photo not found
+        HTTPException 403: Not authorized to update this property
+    """
+    
+    # Find the property
+    property_obj = db.query(Property).filter(Property.id == property_id).first()
+    if not property_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Property not found"
+        )
+    
+    # Permission check - only property owner or admin can remove photos
+    if (property_obj.property_owner_id != current_user.id and 
+        current_user.role.value != "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this property"
+        )
+    
+    # Check if property has photos
+    if not property_obj.photo_keys:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This property has no photos"
+        )
+    
+    try:
+        # Split keys, remove the specified one, and rejoin
+        keys = property_obj.photo_keys.split(',')
+        if photo_key not in keys:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Photo not found in this property"
+            )
+            
+        keys.remove(photo_key)
+        property_obj.photo_keys = ','.join(keys) if keys else None
+        db.commit()
+            
+        # Also delete from R2 storage
+        try:
+            success = r2_client.delete_object(photo_key)
+            if not success:
+                print(f"Warning: Failed to delete object {photo_key} from R2, but removed from database")
+        except Exception as e:
+            print(f"Failed to delete object {photo_key} from R2: {str(e)}")
+            # Continue anyway since we've updated the database
+            
+        return {
+            "message": "Photo removed successfully", 
+            "photo_key": photo_key,
+            "remaining_photos": len(keys)
+        }
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error removing photo from property {property_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to remove photo from property"
+        )
+
+
+@router.get("/{property_id}/photos")
+async def list_property_photos(
+    property_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    List all photo keys for a property.
+    
+    Returns the photo_keys for a property as a list for easier frontend handling.
+    
+    Args:
+        property_id: ID of the property
+        
+    Returns:
+        List of photo keys and total count
+        
+    Raises:
+        HTTPException 404: Property not found
+    """
+    
+    # Find the property
+    property_obj = db.query(Property).filter(Property.id == property_id).first()
+    if not property_obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Property not found"
+        )
+    
+    # Parse photo keys
+    photo_keys = []
+    if property_obj.photo_keys:
+        photo_keys = property_obj.photo_keys.split(',')
+    
+    return {
+        "property_id": property_id,
+        "photo_keys": photo_keys,
+        "total_photos": len(photo_keys)
+    }

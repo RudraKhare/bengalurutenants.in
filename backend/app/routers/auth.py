@@ -13,6 +13,8 @@ from ..db import get_db
 from ..models import User
 from ..schemas import EmailRequest, MagicTokenResponse, TokenResponse
 from ..auth.utils import create_magic_token, verify_magic_token, create_access_token
+from ..services.email_service import send_magic_link_email
+from ..dependencies import get_current_user
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
@@ -30,9 +32,8 @@ async def generate_magic_link(
     Process:
     1. Validate email format (handled by Pydantic)
     2. Create short-lived JWT magic token
-    3. Compose verification URL with token
-    4. In DEV: Log link to outbox.log file
-    5. In PROD: Send email (to be implemented)
+    3. Send magic link via email (or log in development)
+    4. Return success message
     
     Args:
         request: EmailRequest with validated email
@@ -46,17 +47,17 @@ async def generate_magic_link(
         # Create magic token with 10-minute expiry
         magic_token = create_magic_token(request.email)
         
-        # Compose verification URL for frontend
-        verification_url = f"{FRONTEND_URL}/auth/verify?token={magic_token}"
-        
         # Development: Write to outbox.log instead of sending email
-        outbox_path = "outbox.log"
-        timestamp = datetime.utcnow().isoformat()
+        # Send magic link via email service
+        email_sent = await send_magic_link_email(request.email, magic_token)
         
-        with open(outbox_path, "a", encoding="utf-8") as f:
-            f.write(f"[{timestamp}] Magic link for {request.email}: {verification_url}\n")
-        
-        return MagicTokenResponse(message="Magic link generated")
+        if email_sent:
+            return MagicTokenResponse(message="Magic link sent to your email!")
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send magic link"
+            )
         
     except Exception as e:
         # Log error and return generic message for security
@@ -144,3 +145,33 @@ async def verify_magic_link(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to verify user"
         )
+
+@router.get("/me")
+async def get_current_user_info(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get current authenticated user information.
+    
+    Returns user data for the currently authenticated user based on JWT token.
+    Used by frontend to display user info and maintain authentication state.
+    
+    Args:
+        db: Database session
+        current_user: Authenticated user from JWT token
+        
+    Returns:
+        User information including email, role, verification status
+        
+    Raises:
+        401: If user is not authenticated or token is invalid
+    """
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "phone": current_user.phone,
+        "role": current_user.role,
+        "is_email_verified": current_user.is_email_verified,
+        "created_at": current_user.created_at.isoformat() if current_user.created_at else None
+    }
