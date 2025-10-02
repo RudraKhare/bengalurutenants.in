@@ -15,15 +15,15 @@ import { GOOGLE_MAPS_CONFIG } from '@/lib/googleMaps';
 import toast from 'react-hot-toast';
 
 interface MapPickerProps {
-  initialLat?: number;
-  initialLng?: number;
+  lat?: number;
+  lng?: number;
   onLocationSelect: (lat: number, lng: number, address?: string) => void;
   height?: string;
 }
 
 export default function MapPicker({
-  initialLat,
-  initialLng,
+  lat,
+  lng,
   onLocationSelect,
   height = '400px'
 }: MapPickerProps) {
@@ -35,104 +35,113 @@ export default function MapPicker({
 
   // Initialize map
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (mapRef.current) {
+      const initMap = async () => {
+        try {
+          // Load Google Maps API
+          const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
+          const { Marker } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
 
-    const initMap = async () => {
-      try {
-        // Load Google Maps API
-        const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
-        const { Marker } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
+          const center = {
+            lat: lat || GOOGLE_MAPS_CONFIG.defaultCenter.lat,
+            lng: lng || GOOGLE_MAPS_CONFIG.defaultCenter.lng
+          };
 
-        const center = {
-          lat: initialLat || GOOGLE_MAPS_CONFIG.defaultCenter.lat,
-          lng: initialLng || GOOGLE_MAPS_CONFIG.defaultCenter.lng
-        };
+          const mapInstance = new Map(mapRef.current!, {
+            center,
+            zoom: 15,
+            mapTypeControl: true,
+            streetViewControl: false,
+            fullscreenControl: true,
+            zoomControl: true,
+            mapId: 'map-picker'
+          });
 
-        const mapInstance = new Map(mapRef.current!, {
-          center,
-          zoom: 15,
-          mapTypeControl: true,
-          streetViewControl: false,
-          fullscreenControl: true,
-          zoomControl: true,
-          mapId: 'map-picker'
-        });
+          setMap(mapInstance);
 
-        setMap(mapInstance);
+          // Create draggable marker
+          const markerInstance = new Marker({
+            position: center,
+            map: mapInstance,
+            draggable: true,
+            title: 'Drag to adjust location'
+          });
 
-        // Create draggable marker
-        const markerInstance = new Marker({
-          position: center,
-          map: mapInstance,
-          draggable: true,
-          title: 'Drag to adjust location'
-        });
+          setMarker(markerInstance);
 
-        setMarker(markerInstance);
-
-        // Handle marker drag
-        markerInstance.addListener('dragend', async () => {
-          const position = markerInstance.position;
-          if (position) {
-            const lat = typeof position.lat === 'function' ? position.lat() : position.lat;
-            const lng = typeof position.lng === 'function' ? position.lng() : position.lng;
-            
-            // Reverse geocode to get address
-            try {
-              const geocoder = new google.maps.Geocoder();
-              const result = await geocoder.geocode({ location: { lat, lng } });
+          // Handle marker drag
+          markerInstance.addListener('dragend', async () => {
+            const position = markerInstance.position;
+            if (position) {
+              const lat = typeof position.lat === 'function' ? position.lat() : position.lat;
+              const lng = typeof position.lng === 'function' ? position.lng() : position.lng;
               
-              if (result.results[0]) {
-                const address = result.results[0].formatted_address;
-                setSelectedAddress(address);
-                onLocationSelect(lat, lng, address);
+              // Reverse geocode to get address
+              try {
+                const geocoder = new google.maps.Geocoder();
+                const result = await geocoder.geocode({ location: { lat, lng } });
+              
+                if (result.results[0]) {
+                  const address = result.results[0].formatted_address;
+                  setSelectedAddress(address);
+                  onLocationSelect(lat, lng, address);
                 
-                // Show info window with address
-                const infoWindow = new google.maps.InfoWindow({
-                  content: `<div style="padding: 8px;">
-                    <strong>Selected Location</strong><br/>
-                    ${address}
-                  </div>`
-                });
-                infoWindow.open(mapInstance, markerInstance);
+                  // Show info window with address
+                  const infoWindow = new google.maps.InfoWindow({
+                    content: `<div style="padding: 8px;">
+                      <strong>Selected Location</strong><br/>
+                      ${address}
+                    </div>`
+                  });
+                  infoWindow.open(mapInstance, markerInstance);
+                }
+              } catch (error) {
+                console.error('Reverse geocoding failed:', error);
+                onLocationSelect(lat, lng);
               }
-            } catch (error) {
-              console.error('Reverse geocoding failed:', error);
+            }
+          });
+
+          // Handle map click to move marker
+          mapInstance.addListener('click', (e: google.maps.MapMouseEvent) => {
+            if (e.latLng) {
+              markerInstance.position = e.latLng;
+              const lat = e.latLng.lat();
+              const lng = e.latLng.lng();
               onLocationSelect(lat, lng);
             }
-          }
-        });
+          });
 
-        // Handle map click to move marker
-        mapInstance.addListener('click', (e: google.maps.MapMouseEvent) => {
-          if (e.latLng) {
-            markerInstance.position = e.latLng;
-            const lat = e.latLng.lat();
-            const lng = e.latLng.lng();
-            onLocationSelect(lat, lng);
-          }
-        });
-
-        // Initial reverse geocode if coordinates provided
-        if (initialLat && initialLng) {
-          const geocoder = new google.maps.Geocoder();
-          geocoder.geocode(
-            { location: { lat: initialLat, lng: initialLng } },
-            (results, status) => {
-              if (status === 'OK' && results?.[0]) {
-                setSelectedAddress(results[0].formatted_address);
+          // Initial reverse geocode if coordinates provided
+          if (lat && lng) {
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode(
+              { location: { lat, lng } },
+              (results, status) => {
+                if (status === 'OK' && results?.[0]) {
+                  setSelectedAddress(results[0].formatted_address);
+                }
               }
-            }
-          );
+            );
+          }
+        } catch (error) {
+          console.error('Error loading Google Maps:', error);
+          toast.error('Failed to load map');
         }
-      } catch (error) {
-        console.error('Error loading Google Maps:', error);
-        toast.error('Failed to load map');
-      }
-    };
+      };
 
-    initMap();
+      initMap();
+    }
   }, []);
+
+  // Update map center and marker when lat/lng change
+  useEffect(() => {
+    if (map && marker && typeof lat === 'number' && typeof lng === 'number') {
+      const newCenter = { lat, lng };
+      map.setCenter(newCenter);
+      marker.setPosition(newCenter);
+    }
+  }, [lat, lng, map, marker]);
 
   // Get current location
   const handleGetCurrentLocation = () => {

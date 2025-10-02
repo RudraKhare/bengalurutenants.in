@@ -6,20 +6,22 @@ import SearchInput from './SearchInput';
 interface PropertySearchProps {
   initialValue?: string;
   initialPropertyType?: string;
+  initialCity?: string;
 }
 
 export default function PropertySearch({ 
   initialValue = '', 
-  initialPropertyType = '' 
+  initialPropertyType = '',
+  initialCity = 'Bengaluru'
 }: PropertySearchProps) {
   const router = useRouter();
 
   // When a search is performed from homepage, we navigate to the search results page
-  const handleSearch = (searchTerm: string, propertyType: string) => {
+  const handleSearch = (searchTerm: string, propertyType: string, city: string) => {
     const params = new URLSearchParams();
     if (searchTerm) params.append('area', searchTerm);
     if (propertyType) params.append('propertyType', propertyType);
-    
+    if (city) params.append('city', city);
     router.push(`/property/search${params.toString() ? '?' + params.toString() : ''}`);
   };
   
@@ -29,6 +31,7 @@ export default function PropertySearch({
         <SearchInput 
           initialArea={initialValue}
           initialPropertyType={initialPropertyType}
+          initialCity={initialCity}
           onSearch={handleSearch}
         />
       </div>

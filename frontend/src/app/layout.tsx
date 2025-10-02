@@ -9,9 +9,9 @@ import { Navigation } from '@/components'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Bengaluru Tenants - Property Reviews & Ratings',
-  description: 'Find honest tenant reviews and ratings for rental properties in Bengaluru. Share your experience and help others make informed decisions.',
-  keywords: 'bengaluru, bangalore, rental, property, reviews, tenants, landlord, apartments, pg, house',
+  title: 'OpenReviews.in - Property Reviews & Ratings',
+  description: 'Find honest tenant reviews and ratings for rental properties across India. Share your experience and help others make informed decisions.',
+  keywords: 'openreviews, rental, property, reviews, tenants, landlord, apartments, pg, house',
 }
 
 export default function RootLayout({
@@ -44,7 +44,7 @@ export default function RootLayout({
           <footer className="bg-white border-t border-gray-200 mt-12">
             <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
               <div className="text-center text-gray-600">
-                <p>&copy; 2025 Bengaluru Tenants. Helping renters make informed decisions.</p>
+                <p>&copy; 2025 OpenReviews.in. Helping renters make informed decisions.</p>
                 {/* TODO: Add footer links, privacy policy, terms of service */}
               </div>
             </div>

@@ -255,7 +255,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl font-bold text-center text-gray-900 mb-6">
-              Why Choose Bengaluru Tenants?
+              Why Choose OpenReviews.in?
             </h2>
             
             {/* Core Values Section */}

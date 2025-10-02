@@ -42,13 +42,13 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   
   if (!property) {
     return {
-      title: 'Property Not Found - Bengaluru Tenants',
+      title: 'Property Not Found - OpenReviews.in',
       description: 'The requested property could not be found.',
     };
   }
   
   return {
-    title: `${property.address} - ₹${property.rent_amount}/month | Bengaluru Tenants`,
+    title: `${property.address} - ₹${property.rent_amount}/month | OpenReviews.in`,
     description: `${property.property_type} for rent in ${property.city}. ${property.description || 'View details and reviews from verified tenants.'}`,
     openGraph: {
       title: `${property.address} - Property for Rent`,

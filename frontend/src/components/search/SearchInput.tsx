@@ -3,39 +3,43 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { buildApiUrl, API_ENDPOINTS } from '@/lib/api';
-import { AllBengaluruLocalities } from '@/lib/localities';
+import { AllBengaluruLocalities, AllCityLocalities } from '@/lib/localities';
+import { getFuzzyLocalitySuggestions } from '@/lib/fuzzyLocality';
+
+const AllIndianCities = Object.keys(AllCityLocalities);
 
 interface SearchInputProps {
   initialArea?: string;
   initialPropertyType?: string;
-  onSearch: (area: string, propertyType: string) => void;
+  initialCity?: string;
+  onSearch: (area: string, propertyType: string, city: string) => void;
   onNearbySearch?: (radius: number) => void;
 }
 
-export default function SearchInput({ initialArea = '', initialPropertyType = '', onSearch, onNearbySearch }: SearchInputProps) {
+export default function SearchInput({ initialArea = '', initialPropertyType = '', initialCity = 'Bengaluru', onSearch, onNearbySearch }: SearchInputProps) {
   const [searchArea, setSearchArea] = useState(initialArea);
   const [propertyType, setPropertyType] = useState(initialPropertyType);
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredLocalities, setFilteredLocalities] = useState<string[]>([]);
   const [showRadiusDropdown, setShowRadiusDropdown] = useState(false);
   const [customRadius, setCustomRadius] = useState('');
+  const [selectedCity, setSelectedCity] = useState(initialCity);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const radiusDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Filter localities based on input
+  // Filter localities based on input and selected city
   useEffect(() => {
+    const cityLocalities = AllCityLocalities[selectedCity] || [];
     if (searchArea.trim() === '') {
-      // Show popular localities or recent searches when empty
-      setFilteredLocalities(AllBengaluruLocalities.slice(0, 10));
+      setFilteredLocalities(cityLocalities.slice(0, 20)); // Show more when empty
     } else {
-      const filtered = AllBengaluruLocalities.filter(
-        locality => locality.toLowerCase().includes(searchArea.toLowerCase())
-      );
-      setFilteredLocalities(filtered.slice(0, 15)); // Limit to avoid overwhelming dropdown
+      setFilteredLocalities(getFuzzyLocalitySuggestions(cityLocalities, searchArea));
     }
-  }, [searchArea]);
+  }, [searchArea, selectedCity]);
   
   // Handle clicks outside dropdown to close it
   useEffect(() => {
@@ -47,26 +51,29 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
       if (radiusDropdownRef.current && !radiusDropdownRef.current.contains(event.target as Node)) {
         setShowRadiusDropdown(false);
       }
+      if (showCityDropdown && event.target instanceof HTMLElement && !event.target.closest('.city-dropdown')) {
+        setShowCityDropdown(false);
+      }
     }
     
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [showCityDropdown]);
 
   // Handle search submission
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setShowDropdown(false);
-    onSearch(searchArea, propertyType);
+    onSearch(searchArea, propertyType, selectedCity);
   };
   
   // Handle locality selection from dropdown
   const handleSelectLocality = (locality: string) => {
     setSearchArea(locality);
     setShowDropdown(false);
-    onSearch(locality, propertyType);
+    onSearch(locality, propertyType, selectedCity);
   };
 
   // Handle nearby search with radius selection
@@ -92,10 +99,53 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
     }
   };
 
+  const filteredCities = citySearch.trim() === '' ? AllIndianCities : AllIndianCities.filter(city => city.toLowerCase().includes(citySearch.toLowerCase()));
+
   return (
     <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 mb-8 w-full max-w-6xl mx-auto overflow-visible relative z-20">
       <form onSubmit={handleSearch} className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row gap-4">
+          {/* City Dropdown - Custom Styled with Search */}
+          <div className="flex-shrink-0 relative z-40">
+            <button
+              type="button"
+              onClick={() => setShowCityDropdown(!showCityDropdown)}
+              className="bg-white text-left text-gray-900 font-medium px-8 py-4 rounded-lg transition-colors flex items-center justify-between shadow-md border border-gray-200 w-full"
+            >
+              <span className="truncate">{selectedCity}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showCityDropdown && (
+              <div className="absolute left-0 top-full w-full z-[99999] bg-white border-2 border-gray-300 rounded-lg shadow-2xl">
+                <div className="p-3 city-dropdown">
+                  <input
+                    type="text"
+                    value={citySearch}
+                    onChange={e => setCitySearch(e.target.value)}
+                    placeholder="Search city..."
+                    className="w-full px-3 py-2 mb-3 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <div className="max-h-60 overflow-auto">
+                    {filteredCities.map(city => (
+                      <button
+                        key={city}
+                        type="button"
+                        onClick={() => { setSelectedCity(city); setShowCityDropdown(false); setCitySearch(''); }}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-900 hover:bg-blue-50 rounded cursor-pointer transition-colors mb-1"
+                      >
+                        {city}
+                      </button>
+                    ))}
+                    {filteredCities.length === 0 && (
+                      <div className="text-gray-500 text-sm px-3 py-2">No cities found</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex-1 relative z-30">
             <input
               ref={inputRef}
@@ -110,7 +160,7 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
             />
             
             {/* Localities Dropdown - Fixed z-index and positioning */}
-            {showDropdown && filteredLocalities.length > 0 && !searchArea && (
+            {showDropdown && filteredLocalities.length > 0 && (
               <div 
                 ref={dropdownRef}
                 className="absolute z-[99999] mt-1 w-full bg-white border-2 border-gray-300 rounded-lg shadow-2xl max-h-60 overflow-auto"
@@ -126,41 +176,6 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
                     {locality}
                   </button>
                 ))}
-              </div>
-            )}
-            
-            {/* Custom Property Suggestions Dropdown - Fixed z-index and positioning */}
-            {searchArea && searchArea.length > 1 && (
-              <div 
-                className="absolute z-[99999] mt-1 w-full bg-white border-2 border-gray-300 rounded-lg shadow-2xl max-h-60 overflow-auto"
-                style={{ top: '100%', left: 0 }}
-              >
-                {[
-                  "Brigade Meadows, Kaggalipura",
-                  "Prestige Lakeside Habitat, Whitefield",
-                  "Sobha Dream Acres, Panathur",
-                  "Godrej Woodsman Estate, Hebbal",
-                  "Adarsh Palm Retreat, Bellandur",
-                  "Embassy Springs, Devanahalli",
-                  "Purva Highland, Kanakapura Road",
-                  "Salarpuria Sattva Serenity, HSR Layout",
-                  "SNN Raj Serenity, Begur"
-                ]
-                  .filter(property => property.toLowerCase().includes(searchArea.toLowerCase()))
-                  .map((property) => (
-                    <button
-                      key={property}
-                      type="button"
-                      onClick={() => {
-                        setSearchArea(property);
-                        setShowDropdown(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0"
-                    >
-                      {property}
-                    </button>
-                  ))
-                }
               </div>
             )}
           </div>

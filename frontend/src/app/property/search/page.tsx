@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { buildApiUrl, API_ENDPOINTS } from '@/lib/api';
-import { AllBengaluruLocalities, BengaluruLocalities } from '@/lib/localities';
+import { AllBengaluruLocalities, BengaluruLocalities, AllCityLocalities } from '@/lib/localities';
 import { useSearchParams } from 'next/navigation';
 import SearchInput from '@/components/search/SearchInput';
 import PropertyCard from '@/components/PropertyCard';
@@ -35,6 +35,7 @@ export default function PropertySearchPage() {
   const searchParams = useSearchParams();
   const initialArea = searchParams.get('area') || '';
   const initialPropertyType = searchParams.get('propertyType') || '';
+  const initialCity = searchParams.get('city') || Object.keys(AllCityLocalities)[0];
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,10 @@ export default function PropertySearchPage() {
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
+  const [selectedCity, setSelectedCity] = useState(initialCity);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
+  const cityDropdownRef = useRef<HTMLDivElement>(null);
   
   const itemsPerPage = 10;
 
@@ -60,7 +65,7 @@ export default function PropertySearchPage() {
     }
   };
 
-  const loadProperties = async (page: number = 1, area: string = '') => {
+  const loadProperties = async (page: number = 1, area: string = '', city: string = selectedCity) => {
     setLoading(true);
     setError(null);
     
@@ -85,6 +90,10 @@ export default function PropertySearchPage() {
         }
       }
       
+      if (city) {
+        queryParams.append('city', city);
+      }
+      
       const url = buildApiUrl(API_ENDPOINTS.PROPERTIES.LIST, queryParams);
       const response = await fetch(url);
       
@@ -100,6 +109,11 @@ export default function PropertySearchPage() {
           property.area?.toLowerCase().includes(area.toLowerCase()) ||
           property.address.toLowerCase().includes(area.toLowerCase())
         );
+      }
+      
+      // Filter by city client-side as fallback
+      if (city) {
+        filteredProperties = filteredProperties.filter(property => property.city === city);
       }
       
       setProperties(filteredProperties);
@@ -159,11 +173,28 @@ export default function PropertySearchPage() {
     }
   }, [userLocation]);
 
-  const handleSearch = (area: string, selectedPropertyType: string) => {
+  // City Dropdown - Custom Styled
+  const allCities = Object.keys(AllCityLocalities);
+  const filteredCities = citySearch.trim() === '' ? allCities : allCities.filter(city => city.toLowerCase().includes(citySearch.toLowerCase()));
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target as Node)) {
+        setShowCityDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleSearch = (area: string, selectedPropertyType: string, city: string = selectedCity) => {
     setCurrentPage(1);
     setShowDropdown(false);
     setPropertyType(selectedPropertyType);
-    loadProperties(1, area);
+    setSelectedCity(city);
+    loadProperties(1, area, city);
   };
   
   const handleSelectLocality = (locality: string) => {
@@ -227,10 +258,10 @@ export default function PropertySearchPage() {
         
         <div className="relative z-10 max-w-full mx-auto px-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Search Properties in Bengaluru
+            Search Properties in - {selectedCity}
           </h1>
           <p className="text-gray-600 mb-6">
-            Find honest reviews for rental properties across Bengaluru. Filter by area to find your next home.
+            Find honest reviews for rental properties across {selectedCity}. Filter by area to find your next home.
           </p>
           
           {/* Extended Search Form */}
@@ -238,11 +269,8 @@ export default function PropertySearchPage() {
             <SearchInput 
               initialArea={searchArea}
               initialPropertyType={propertyType}
-              onSearch={(area, selectedPropertyType) => {
-                setSearchArea(area);
-                setPropertyType(selectedPropertyType);
-                loadProperties(1, area);
-              }}
+              initialCity={selectedCity}
+              onSearch={handleSearch}
               onNearbySearch={handleNearbySearch}
             />
           </div>

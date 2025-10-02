@@ -20,7 +20,7 @@ export default function Navigation() {
           <div className="flex items-center">
             <Link href="/" className="flex-shrink-0">
               <h1 className="text-xl font-bold text-gray-900">
-                bengalurutenants.in
+                OpenReviews.in
               </h1>
             </Link>
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AllCityLocalities } from '@/lib/localities';
 
 interface ReviewFormProps {
   propertyId: number;
@@ -20,6 +21,7 @@ export default function ReviewForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [selectedCity, setSelectedCity] = useState(Object.keys(AllCityLocalities)[0]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +57,7 @@ export default function ReviewForm({
           property_id: propertyId,
           rating,
           comment: comment.trim(),
+          city: selectedCity, // <-- send city
         }),
       });
 
@@ -107,6 +110,21 @@ export default function ReviewForm({
       <h3 className="text-lg font-medium text-gray-900 mb-4">Write a Review</h3>
       
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* City Dropdown */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
+          <select
+            value={selectedCity}
+            onChange={e => setSelectedCity(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            required
+          >
+            {Object.keys(AllCityLocalities).map(city => (
+              <option key={city} value={city}>{city}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Rating */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">

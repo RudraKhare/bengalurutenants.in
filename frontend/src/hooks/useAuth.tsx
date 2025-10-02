@@ -1,5 +1,5 @@
 /**
- * Authentication Context for Bengaluru Tenants App
+ * Authentication Context for OpenReviews.in App
  * 
  * Handles JWT token management and API authentication state.
  * Integrates with the Day 2 magic link authentication system.

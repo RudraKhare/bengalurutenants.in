@@ -1,4 +1,4 @@
-# Bengaluru Tenants Platform
+# OpenReviews.in Platform
 
 A full-stack web platform for tenant reviews and property information, starting with Bengaluru. Tenants can share reviews, experiences, and verify their stays to help others make informed rental decisions.
 
