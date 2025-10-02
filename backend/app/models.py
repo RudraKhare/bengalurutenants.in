@@ -159,3 +159,21 @@ Index('idx_reviews_property_date', Review.property_id, Review.created_at.desc())
 
 # Index for user verification status lookups
 Index('idx_verifications_user_status', TenantVerification.user_id, TenantVerification.status)
+
+# Geocoding Cache model for minimizing API calls
+class GeocodingCache(Base):
+    """
+    Geocoding cache to minimize Google Maps API calls.
+    Stores address-to-coordinates mappings with timestamps.
+    """
+    __tablename__ = "geocoding_cache"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    address = Column(String(500), unique=True, nullable=False, index=True)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    formatted_address = Column(String(500), nullable=True)
+    cached_at = Column(DateTime(timezone=True), server_default=func.now())
+
+# Index for geocoding cache address lookups
+Index('idx_geocoding_cache_address', GeocodingCache.address)

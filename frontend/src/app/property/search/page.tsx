@@ -6,16 +6,17 @@ import { AllBengaluruLocalities, BengaluruLocalities } from '@/lib/localities';
 import { useSearchParams } from 'next/navigation';
 import SearchInput from '@/components/search/SearchInput';
 import PropertyCard from '@/components/PropertyCard';
+import PropertyMap from '@/components/PropertyMap';
 
 interface Property {
   id: number;
   address: string;
   city: string;
   area?: string;
-  property_type?: string; // Now properly mapped from backend
+  property_type?: string;
   lat?: number;
   lng?: number;
-  photo_keys?: string; // Comma-separated R2 object keys
+  photo_keys?: string;
   created_at: string;
   avg_rating?: number;
   review_count: number;
@@ -33,7 +34,7 @@ interface SearchResponse {
 export default function PropertySearchPage() {
   const searchParams = useSearchParams();
   const initialArea = searchParams.get('area') || '';
-  const initialPropertyType = searchParams.get('propertyType') || 'villaHouse';
+  const initialPropertyType = searchParams.get('propertyType') || '';
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +47,10 @@ export default function PropertySearchPage() {
   const [filteredLocalities, setFilteredLocalities] = useState<string[]>([]);
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(null);
   
   const itemsPerPage = 10;
 
-  // Convert frontend property types to backend enum values
   const getBackendPropertyType = (frontendType: string) => {
     switch (frontendType) {
       case 'villaHouse': return 'VILLA_HOUSE';
@@ -64,23 +65,19 @@ export default function PropertySearchPage() {
     setError(null);
     
     try {
-      // Calculate skip based on pagination
       const skip = (page - 1) * itemsPerPage;
       
-      // Build query parameters
       let queryParams = new URLSearchParams({
         skip: skip.toString(),
         limit: itemsPerPage.toString(),
       });
       
-      // Add location-based filtering if user has selected a distance
       if (selectedDistance !== null && userLocation) {
         queryParams.append('latitude', userLocation.lat.toString());
         queryParams.append('longitude', userLocation.lng.toString());
         queryParams.append('radius_km', selectedDistance.toString());
       }
       
-      // Add property type filter to backend query
       if (propertyType) {
         const backendPropertyType = getBackendPropertyType(propertyType);
         if (backendPropertyType) {
@@ -88,9 +85,7 @@ export default function PropertySearchPage() {
         }
       }
       
-      // Call properties API
       const url = buildApiUrl(API_ENDPOINTS.PROPERTIES.LIST, queryParams);
-      
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -99,7 +94,6 @@ export default function PropertySearchPage() {
       
       const data: SearchResponse = await response.json();
       
-      // Filter by area if provided (client-side filtering since backend doesn't support it yet)
       let filteredProperties = data.properties;
       if (area) {
         filteredProperties = data.properties.filter(property => 
@@ -108,9 +102,8 @@ export default function PropertySearchPage() {
         );
       }
       
-      // Property type filtering is now handled by the backend API
       setProperties(filteredProperties);
-      setTotalCount(data.total); // We're still showing the total from the API
+      setTotalCount(data.total);
       
     } catch (err: any) {
       console.error("Failed to load properties:", err);
@@ -121,27 +114,21 @@ export default function PropertySearchPage() {
     }
   };
 
-  // Filter localities based on input
   useEffect(() => {
     if (searchArea.trim() === '') {
-      // Show popular localities or recent searches when empty
       setFilteredLocalities(AllBengaluruLocalities.slice(0, 10));
     } else {
       const filtered = AllBengaluruLocalities.filter(
         locality => locality.toLowerCase().includes(searchArea.toLowerCase())
       );
-      setFilteredLocalities(filtered.slice(0, 15)); // Limit to avoid overwhelming dropdown
+      setFilteredLocalities(filtered.slice(0, 15));
     }
   }, [searchArea]);
 
-  // Load properties when the component mounts or when URL params change
   useEffect(() => {
     loadProperties(1, initialArea);
   }, [initialArea, initialPropertyType]);
   
-  // No longer need dropdown handling in the parent component
-  
-  // Get user location for distance filtering
   useEffect(() => {
     if (navigator.geolocation && selectedDistance !== null) {
       navigator.geolocation.getCurrentPosition(
@@ -160,37 +147,36 @@ export default function PropertySearchPage() {
     }
   }, [selectedDistance]);
   
-  // Update results when property type changes
   useEffect(() => {
-    if (propertyType) {
+    if (propertyType !== undefined) {
       loadProperties(1, searchArea);
     }
   }, [propertyType]);
 
-  // Handle search submission - now handled by SearchInput component
+  useEffect(() => {
+    if (userLocation && selectedDistance !== null) {
+      loadProperties(1, searchArea);
+    }
+  }, [userLocation]);
+
   const handleSearch = (area: string, selectedPropertyType: string) => {
-    setCurrentPage(1); // Reset to first page when searching
-    setShowDropdown(false); // Close dropdown
+    setCurrentPage(1);
+    setShowDropdown(false);
     setPropertyType(selectedPropertyType);
-    
-    // Load properties with both area and property type filters
     loadProperties(1, area);
   };
   
-  // Handle locality selection from dropdown
   const handleSelectLocality = (locality: string) => {
     setSearchArea(locality);
     setShowDropdown(false);
     loadProperties(1, locality);
   };
   
-  // Handle distance filter selection
   const handleDistanceFilter = (distance: number | null) => {
     setSelectedDistance(distance);
     setCurrentPage(1);
     
     if (distance === null) {
-      // Reset location-based filtering
       setUserLocation(null);
       loadProperties(1, searchArea);
       return;
@@ -203,51 +189,106 @@ export default function PropertySearchPage() {
     }
   };
 
-  // Removed formatDate and renderStars functions as they're now in PropertyCard component
+  // Handle nearby search from SearchInput component
+  const handleNearbySearch = (radius: number) => {
+    setCurrentPage(1);
+    
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser. Please enable location access.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setUserLocation(location);
+        setSelectedDistance(radius);
+        // Load properties will be triggered by the useEffect for selectedDistance
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        alert("Could not get your current location. Please enable location access in your browser settings.");
+      }
+    );
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Page header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Search Properties in Bengaluru
-        </h1>
-        <p className="text-gray-600">
-          Find honest reviews for rental properties across Bengaluru. Filter by area to find your next home.
-        </p>
-      </div>
-
-      {/* Search Form at the top */}
-      <div className="mb-6">
-        <SearchInput 
-          initialArea={searchArea}
-          initialPropertyType={propertyType}
-          onSearch={(area, selectedPropertyType) => {
-            setSearchArea(area);
-            setPropertyType(selectedPropertyType);
-            loadProperties(1, area);
-          }}
-        />
+    <div className="min-h-screen bg-gray-50">
+      {/* Page header with extended search and animated gradient background - extends behind header */}
+      <div className="relative bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 overflow-visible shadow-sm border-b border-gray-200 -mt-16 pt-24 py-6 mb-6">
+        {/* Decorative Background Elements - Animated Blobs */}
+        <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-400 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-teal-400 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+        <div className="absolute top-10 right-1/4 w-64 h-64 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
         
-        {selectedDistance && (
-          <div className="mt-3 bg-blue-50 text-blue-800 text-sm p-2 rounded">
-            Showing properties within {selectedDistance}km of your current location
+        <div className="relative z-10 max-w-full mx-auto px-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            Search Properties in Bengaluru
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Find honest reviews for rental properties across Bengaluru. Filter by area to find your next home.
+          </p>
+          
+          {/* Extended Search Form */}
+          <div className="relative z-20">
+            <SearchInput 
+              initialArea={searchArea}
+              initialPropertyType={propertyType}
+              onSearch={(area, selectedPropertyType) => {
+                setSearchArea(area);
+                setPropertyType(selectedPropertyType);
+                loadProperties(1, area);
+              }}
+              onNearbySearch={handleNearbySearch}
+            />
           </div>
-        )}
+          
+          {selectedDistance && (
+            <div className="mt-3 bg-blue-50 text-blue-800 text-sm p-2 rounded flex items-center justify-between">
+              <span>Showing properties within {selectedDistance}km of your current location</span>
+              <button
+                onClick={() => {
+                  setSelectedDistance(null);
+                  setUserLocation(null);
+                  loadProperties(1, searchArea);
+                }}
+                className="ml-4 text-blue-600 hover:text-blue-800 font-medium underline hover:no-underline transition-colors"
+                title="Clear location filter"
+              >
+                Clear Filter
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Main Content with Sidebar Layout */}
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Sidebar with Filters on the left */}
-        <div className="md:w-64 shrink-0">
-          <div className="sticky top-4">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
+      {/* Main Layout: Filters (20%) | Properties (50%) | Map (30%) */}
+      <div className="flex gap-4 px-4">
+        {/* LEFT: Filters Section - 20% */}
+        <div className="w-1/5 shrink-0">
+          <div className="sticky top-20">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 px-2">Filters</h2>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Property Type Filter */}
               <div className="bg-white rounded-lg shadow-sm border p-4">
                 <h3 className="font-semibold text-gray-900 mb-3">Property Type</h3>
                 <div className="space-y-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="propertyTypeFilter" 
+                      value="" 
+                      checked={propertyType === ''}
+                      onChange={() => setPropertyType('')}
+                      className="form-radio text-blue-500 h-4 w-4 cursor-pointer" 
+                    />
+                    <span className="ml-2 text-sm text-gray-800">All Properties</span>
+                  </label>
                   <label className="flex items-center cursor-pointer">
                     <input 
                       type="radio" 
@@ -347,8 +388,8 @@ export default function PropertySearchPage() {
           </div>
         </div>
         
-        {/* Main Content - Property Listings */}
-        <div className="flex-1">
+        {/* CENTER: Property Listings - 50% */}
+        <div className="w-1/2">
           {loading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="animate-spin w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full mb-4"></div>
@@ -392,12 +433,12 @@ export default function PropertySearchPage() {
           </div>
         ) : (
           <div>
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 bg-white p-3 rounded-lg shadow-sm">
               <p className="text-sm text-gray-600">
                 Found <span className="font-semibold">{totalCount}</span> properties {searchArea && `matching "${searchArea}"`}
               </p>
               <div className="flex items-center space-x-2">
-                <label htmlFor="sort" className="text-sm text-gray-600">Sort by:</label>
+                <label htmlFor="sort" className="text-sm text-gray-600">Sort:</label>
                 <select 
                   id="sort" 
                   className="text-sm border rounded px-2 py-1 bg-white"
@@ -410,18 +451,26 @@ export default function PropertySearchPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Property List - 2 columns grid */}
+            <div className="grid grid-cols-2 gap-4">
               {properties.map((property) => (
-                <PropertyCard 
+                <div 
                   key={property.id}
-                  property={property}
-                  propertyType={propertyType}
-                />
+                  onClick={() => setSelectedPropertyId(property.id)}
+                  className={`cursor-pointer transition-all ${
+                    selectedPropertyId === property.id ? 'ring-2 ring-blue-500 shadow-lg' : ''
+                  }`}
+                >
+                  <PropertyCard 
+                    property={property}
+                    propertyType={propertyType}
+                  />
+                </div>
               ))}
             </div>
 
             {/* Pagination */}
-            <div className="mt-8 flex justify-center">
+            <div className="mt-6 flex justify-center">
               <nav className="inline-flex rounded-md shadow-sm">
                 <button
                   onClick={() => {
@@ -461,6 +510,20 @@ export default function PropertySearchPage() {
             </div>
           </div>
         )}
+        </div>
+
+        {/* RIGHT: Map Section - 30% */}
+        <div className="w-[30%] shrink-0">
+          <div className="sticky top-20">
+            <PropertyMap
+              properties={properties.filter(p => p.lat && p.lng) as any}
+              height="calc(100vh - 120px)"
+              selectedPropertyId={selectedPropertyId || undefined}
+              onPropertyClick={setSelectedPropertyId}
+              centerLat={userLocation?.lat}
+              centerLng={userLocation?.lng}
+            />
+          </div>
         </div>
       </div>
     </div>

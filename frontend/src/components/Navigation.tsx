@@ -4,11 +4,17 @@ import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 
+// Convert email to kebab-case username
+const getUsername = (email: string) => {
+  const username = email.split('@')[0];
+  return username.toLowerCase().replace(/[._]/g, '-');
+};
+
 export default function Navigation() {
   const { isAuthenticated, user, logout, isLoading } = useAuth();
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/30 backdrop-blur-lg shadow-sm border-b border-white/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -32,17 +38,15 @@ export default function Navigation() {
                 <Link href="/dashboard" className="btn-secondary">
                   Dashboard
                 </Link>
-                <div className="flex items-center space-x-3">
-                  <div className="text-sm text-gray-600">
-                    Welcome, <span className="font-medium">{user.email}</span>
-                  </div>
-                  <button
-                    onClick={logout}
-                    className="text-sm text-gray-500 hover:text-gray-700 underline"
-                  >
-                    Logout
-                  </button>
+                <div className="text-sm text-gray-600">
+                  Welcome, <span className="font-medium">{getUsername(user.email)}</span>
                 </div>
+                <button
+                  onClick={logout}
+                  className="btn-secondary"
+                >
+                  Logout
+                </button>
               </>
             ) : (
               // Guest user navigation

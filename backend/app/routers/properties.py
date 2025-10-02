@@ -13,6 +13,7 @@ from ..models import Property, User, PropertyType
 from ..schemas import PropertyCreate, PropertyOut, PropertyListResponse, PhotoUploadData
 from ..dependencies import get_current_user, get_current_user_optional
 from ..services.r2_client import r2_client
+from ..services.geocoding_service import GeocodingService
 
 router = APIRouter(prefix="/api/v1/properties", tags=["properties"])
 
@@ -175,14 +176,30 @@ async def create_property(
         print(f"   Property Type: {property_data.property_type}")
         print(f"   User ID: {current_user.id}")
         
+        # Auto-geocode if coordinates not provided
+        lat = property_data.lat
+        lng = property_data.lng
+        
+        if lat is None or lng is None:
+            print(f"🗺️ No coordinates provided, auto-geocoding address...")
+            full_address = f"{property_data.address}, {property_data.city}"
+            geocode_result = await GeocodingService.geocode_address(full_address, db)
+            
+            if geocode_result:
+                lat = geocode_result["latitude"]
+                lng = geocode_result["longitude"]
+                print(f"✅ Auto-geocoded to: {lat}, {lng}")
+            else:
+                print(f"⚠️ Auto-geocoding failed, property will be created without coordinates")
+        
         # Create property instance with all available fields
         property_obj = Property(
             address=property_data.address,
             city=property_data.city,
             area=property_data.area,
             property_type=property_data.property_type,  # Include property type from user selection
-            lat=property_data.lat,
-            lng=property_data.lng,
+            lat=lat,
+            lng=lng,
             photo_keys=property_data.photo_keys,  # May be None for new properties
             property_owner_id=current_user.id,    # Set the owner to current user
             avg_rating=0.0,  # Default for new properties

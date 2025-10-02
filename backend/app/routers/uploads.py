@@ -18,11 +18,11 @@ Network flow:
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from ..db import get_db
 from ..models import User
-from ..dependencies import get_current_user
+from ..dependencies import get_current_user, get_current_user_optional
 from ..schemas import PhotoUploadRequest, PhotoUploadResponse, PhotoViewResponse
 from ..services.r2_client import r2_client
 
@@ -103,10 +103,13 @@ async def generate_upload_url(
 @router.get("/view/{object_key:path}", response_model=PhotoViewResponse)
 async def generate_view_url(
     object_key: str,
-    current_user: User = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_current_user_optional)
 ) -> PhotoViewResponse:
     """
     Generate a presigned URL for viewing an uploaded photo.
+    
+    PUBLIC ENDPOINT - No authentication required for viewing property/review photos.
+    This allows anyone to see property listings with photos.
     
     Why we need this:
     - R2 bucket is private (not publicly accessible)

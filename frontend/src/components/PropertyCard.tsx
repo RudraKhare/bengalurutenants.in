@@ -83,13 +83,12 @@ export default function PropertyCard({ property, propertyType }: PropertyCardPro
       hasPhotoKeys: !!property.photo_keys,
       photoKeys: property.photo_keys || 'NULL',
       hasToken: !!token,
-      status: !property.photo_keys ? 'NO_PHOTOS' : !token ? 'NOT_AUTHENTICATED' : 'WILL_FETCH_R2'
+      status: !property.photo_keys ? 'NO_PHOTOS' : 'WILL_FETCH_R2'
     });
 
-    // If no photo keys or no token, use placeholder
-    if (!property.photo_keys || !token) {
-      const reason = !property.photo_keys ? 'No photo_keys in database' : 'User not authenticated';
-      console.log(`🎨 Using Picsum for property ${property.id}: ${reason}`);
+    // If no photo keys, use placeholder
+    if (!property.photo_keys) {
+      console.log(`🎨 Using Picsum for property ${property.id}: No photo_keys in database`);
       return;
     }
 
@@ -105,14 +104,17 @@ export default function PropertyCard({ property, propertyType }: PropertyCardPro
     setLoading(true);
 
     // Request presigned view URL for the first photo
+    // Note: View endpoint is now public, no auth required
     const apiUrl = `http://localhost:8000/api/v1/uploads/view/${encodeURIComponent(firstKey)}`;
     console.log(`📡 API Request: ${apiUrl}`);
     
-    fetch(apiUrl, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    })
+    // Include auth header if available, but don't require it
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    fetch(apiUrl, { headers })
       .then(response => {
         console.log(`📊 API Response ${property.id}:`, {
           status: response.status,

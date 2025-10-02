@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import PhotoUpload from '@/components/PhotoUpload'
+import MapPicker from '@/components/MapPicker'
 import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '@/lib/api'
 import toast from 'react-hot-toast'
 
@@ -28,6 +29,11 @@ export default function AddReviewPage() {
     agreeToTerms: false,
     photoKeys: [] as string[] // Store uploaded photo object keys
   });
+
+  // Map-related state
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
 
   // Handle authentication redirect
   useEffect(() => {
@@ -76,7 +82,9 @@ export default function AddReviewPage() {
           address: fullAddress,
           city: formData.city,
           area: formData.area,
-          property_type: formData.propertyType // Add property type to property creation
+          property_type: formData.propertyType, // Add property type to property creation
+          lat: lat || undefined, // Include coordinates if confirmed
+          lng: lng || undefined
         })
       });
 
@@ -158,8 +166,8 @@ ${formData.comment || 'No additional comments provided.'}
       toast.dismiss(loadingToast)
       toast.success('Review submitted successfully!')
       
-      // Redirect to home
-      router.push('/');
+      // Redirect to the property detail page to see the posted review
+      router.push(`/property/${propertyId}`);
       
     } catch (error) {
       console.error('Error submitting review:', error);
@@ -168,14 +176,14 @@ ${formData.comment || 'No additional comments provided.'}
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
-    }))
-  }
+    }));
+  };
 
   const handlePhotoUpload = (objectKeys: string[]) => {
     setFormData(prev => ({
@@ -184,53 +192,60 @@ ${formData.comment || 'No additional comments provided.'}
     }));
   };
 
+  // Handle location selection from map
+  const handleLocationSelect = (latitude: number, longitude: number, address?: string) => {
+    setLat(latitude);
+    setLng(longitude);
+    if (address) {
+      // Update address from reverse geocoding if provided
+      handleInputChange('propertyAddress', address);
+    }
+  };
+
+  // Confirm location
+  const handleConfirmLocation = () => {
+    if (!lat || !lng) {
+      toast.error('Please select a location on the map');
+      return;
+    }
+    setLocationConfirmed(true);
+    toast.success('Location confirmed!');
+  };
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Share Your Rental Experience
-        </h1>
-        <p className="text-gray-600">
-          Help other tenants by sharing your honest review of the property and landlord.
-        </p>
+      <div className="bg-white border-b border-gray-200 px-6 py-6">
+        <div className="max-w-[1800px] mx-auto">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Share Your Rental Experience
+          </h1>
+          <p className="text-gray-600">
+            Help other tenants by sharing your honest review of the property and landlord.
+          </p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Property Information */}
-        <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Property Information</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Property Address *
-              </label>
-              <textarea
-                className="input-field"
-                rows={3}
-                placeholder="Enter complete address including building name, street, etc."
-                value={formData.propertyAddress}
-                onChange={(e) => handleInputChange('propertyAddress', e.target.value)}
-                required
-              />
-            </div>
+      <form onSubmit={handleSubmit} className="max-w-[1800px] mx-auto px-6 py-6 space-y-6">
+        {/* Row 1: Property Information (Left) + Map (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: Property Information */}
+          <div className="card">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Property Information</h2>
             
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Property Type *
+                  Property Address *
                 </label>
-                <select
+                <textarea
                   className="input-field"
-                  value={formData.propertyType}
-                  onChange={(e) => handleInputChange('propertyType', e.target.value)}
+                  rows={3}
+                  placeholder="Enter complete address including building name, street, etc."
+                  value={formData.propertyAddress}
+                  onChange={(e) => handleInputChange('propertyAddress', e.target.value)}
                   required
-                >
-                  <option value="FLAT_APARTMENT">Flat/Apartment</option>
-                  <option value="VILLA_HOUSE">Villa/House</option>
-                  <option value="PG_HOSTEL">PG/Hostel</option>
-                </select>
+                />
               </div>
               
               <div>
@@ -246,120 +261,187 @@ ${formData.comment || 'No additional comments provided.'}
                   required
                 />
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Overall Rating */}
-        <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Overall Rating</h2>
-          
-          <div className="flex items-center space-x-4">
-            <span className="text-sm font-medium text-gray-700">Rate your overall experience:</span>
-            <div className="flex space-x-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  className={`w-8 h-8 ${star <= formData.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                  onClick={() => handleInputChange('rating', star)}
-                >
-                  <svg className="w-full h-full fill-current" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.922-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                </button>
-              ))}
-            </div>
-            <span className="text-lg font-medium text-gray-900">{formData.rating}/5</span>
-          </div>
-        </div>
-
-        {/* Detailed Ratings */}
-        <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Detailed Ratings</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              { key: 'cleanliness', label: 'Cleanliness & Maintenance' },
-              { key: 'landlordRating', label: 'Landlord Behavior' },
-              { key: 'location', label: 'Location & Connectivity' },
-              { key: 'valueForMoney', label: 'Value for Money' }
-            ].map(({ key, label }) => (
-              <div key={key}>
+              
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {label}
+                  Property Type *
                 </label>
-                <div className="flex items-center space-x-2">
+                <select
+                  className="input-field"
+                  value={formData.propertyType}
+                  onChange={(e) => handleInputChange('propertyType', e.target.value)}
+                  required
+                >
+                  <option value="FLAT_APARTMENT">Flat/Apartment</option>
+                  <option value="VILLA_HOUSE">Villa/House</option>
+                  <option value="PG_HOSTEL">PG/Hostel</option>
+                </select>
+              </div>
+
+              {locationConfirmed && (
+                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-green-800">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-medium">✓ Location Confirmed on Map</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Map (Always Visible) */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">📍 Property Location</h2>
+              {!locationConfirmed && (
+                <span className="text-xs text-gray-500">Drag marker to exact location</span>
+              )}
+            </div>
+            <MapPicker
+              initialLat={lat || undefined}
+              initialLng={lng || undefined}
+              onLocationSelect={handleLocationSelect}
+              height="400px"
+            />
+            {!locationConfirmed && (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={handleConfirmLocation}
+                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                >
+                  ✓ Confirm This Location
+                </button>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  💡 You can adjust the marker anytime before submitting
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Overall Rating + Written Review (Left) + Detailed Ratings (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: Overall Rating + Written Review */}
+          <div className="space-y-6">
+            {/* Overall Rating */}
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Overall Rating</h2>
+              
+              <div className="flex items-center justify-center space-x-4 py-4">
+                <span className="text-sm font-medium text-gray-700">Rate your experience:</span>
+                <div className="flex space-x-2">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
-                      className={`w-6 h-6 ${star <= (formData[key as keyof typeof formData] as number) ? 'text-yellow-400' : 'text-gray-300'}`}
-                      onClick={() => handleInputChange(key, star)}
+                      className={`w-10 h-10 ${star <= formData.rating ? 'text-yellow-400' : 'text-gray-300'} transition-colors`}
+                      onClick={() => handleInputChange('rating', star)}
                     >
                       <svg className="w-full h-full fill-current" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.922-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                       </svg>
                     </button>
                   ))}
-                  <span className="text-sm text-gray-600 ml-2">
+                </div>
+                <span className="text-2xl font-bold text-gray-900">{formData.rating}/5</span>
+              </div>
+            </div>
+
+            {/* Written Review */}
+            <div className="card">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Written Review</h2>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Share your experience in detail
+                </label>
+                <textarea
+                  className="input-field"
+                  rows={8}
+                  placeholder="Tell us about your experience living here. Include details about the property condition, landlord behavior, neighborhood, amenities, etc."
+                  value={formData.comment}
+                  onChange={(e) => handleInputChange('comment', e.target.value)}
+                />
+                <p className="text-sm text-gray-500 mt-2">
+                  Be honest and specific. Your review will help other tenants make informed decisions.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Detailed Ratings */}
+          <div className="card">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Detailed Ratings</h2>
+            
+            <div className="space-y-6">
+            {[
+              { key: 'cleanliness', label: 'Cleanliness & Maintenance', icon: '🧹' },
+              { key: 'landlordRating', label: 'Landlord Behavior', icon: '👤' },
+              { key: 'location', label: 'Location & Connectivity', icon: '📍' },
+              { key: 'valueForMoney', label: 'Value for Money', icon: '💰' }
+            ].map(({ key, label, icon }) => (
+              <div key={key} className="bg-gray-50 p-4 rounded-lg">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  {icon} {label}
+                </label>
+                <div className="flex items-center justify-between">
+                  <div className="flex space-x-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        className={`w-8 h-8 ${star <= (formData[key as keyof typeof formData] as number) ? 'text-yellow-400' : 'text-gray-300'} transition-colors`}
+                        onClick={() => handleInputChange(key, star)}
+                      >
+                        <svg className="w-full h-full fill-current" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.922-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-lg font-bold text-gray-900 ml-3">
                     {formData[key as keyof typeof formData] as number}/5
                   </span>
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Written Review */}
-        <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Written Review</h2>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Share your experience in detail
-            </label>
-            <textarea
-              className="input-field"
-              rows={6}
-              placeholder="Tell us about your experience living here. Include details about the property condition, landlord behavior, neighborhood, amenities, etc."
-              value={formData.comment}
-              onChange={(e) => handleInputChange('comment', e.target.value)}
-            />
-            <p className="text-sm text-gray-500 mt-2">
-              Be honest and specific. Your review will help other tenants make informed decisions.
-            </p>
-          </div>
-        </div>
-
-        {/* Photo Upload - Day 3 Feature */}
-        <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Add Photos (Optional)</h2>
-          <p className="text-gray-600 mb-4">
-            Upload photos to support your review. Photos help other tenants see the actual condition of the property.
-          </p>
-          
-          <PhotoUpload
-            fileType="review"
-            onUploadComplete={handlePhotoUpload}
-            maxFiles={5}
-            className="mb-4"
-          />
-          
-          {formData.photoKeys.length > 0 && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-sm text-green-800">
-                ✅ {formData.photoKeys.length} photo(s) uploaded successfully
-              </p>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Verification */}
-        <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Verification (Optional)</h2>
-          
-          <div className="space-y-4">
+        {/* Row 3: Photo Upload (Left) + Verification (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left: Photo Upload */}
+          <div className="card">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">📸 Add Photos (Optional)</h2>
+            <p className="text-gray-600 mb-4">
+              Upload photos to support your review. Photos help other tenants see the actual condition of the property.
+            </p>
+            
+            <PhotoUpload
+              fileType="review"
+              onUploadComplete={handlePhotoUpload}
+              maxFiles={5}
+              className="mb-4"
+            />
+            
+            {formData.photoKeys.length > 0 && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-800">
+                  ✅ {formData.photoKeys.length} photo(s) uploaded successfully
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Verification */}
+          <div className="card">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">🔒 Verification (Optional)</h2>
+            
+            <div className="space-y-4">
             <p className="text-sm text-gray-600">
               Verify your tenancy to increase trust in your review. Verified reviews are given more weight.
             </p>
@@ -401,10 +483,11 @@ ${formData.comment || 'No additional comments provided.'}
             <p className="text-xs text-gray-500">
               Your documents are encrypted and only used for verification. We do not share personal information.
             </p>
+            </div>
           </div>
         </div>
 
-        {/* Terms and Submit */}
+        {/* Row 4: Terms and Submit (Full Width) */}
         <div className="card">
           <div className="space-y-4">
             <label className="flex items-start">

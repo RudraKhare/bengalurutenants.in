@@ -123,3 +123,43 @@ class PhotoViewResponse(BaseModel):
 class PhotoUploadData(BaseModel):
     """Schema for adding a photo to a property."""
     photo_key: str = Field(..., description="R2 object key for the uploaded photo")
+
+# Geocoding and Map schemas
+class GeocodeRequest(BaseModel):
+    """Request schema for geocoding an address."""
+    address: str = Field(..., min_length=5, max_length=500, description="Address to geocode")
+
+class GeocodeResponse(BaseModel):
+    """Response schema for geocoded address."""
+    latitude: float = Field(..., description="Latitude coordinate")
+    longitude: float = Field(..., description="Longitude coordinate")
+    formatted_address: str = Field(..., description="Formatted address from Google Maps")
+    from_cache: bool = Field(..., description="Whether result came from cache")
+
+class ReverseGeocodeRequest(BaseModel):
+    """Request schema for reverse geocoding coordinates."""
+    latitude: float = Field(..., ge=-90, le=90, description="Latitude coordinate")
+    longitude: float = Field(..., ge=-180, le=180, description="Longitude coordinate")
+
+class ReverseGeocodeResponse(BaseModel):
+    """Response schema for reverse geocoded coordinates."""
+    formatted_address: str = Field(..., description="Address from coordinates")
+
+class PropertyLocationUpdate(BaseModel):
+    """Schema for updating property coordinates (manual pin-drop or geocoding)."""
+    latitude: float = Field(..., ge=-90, le=90, description="Latitude coordinate")
+    longitude: float = Field(..., ge=-180, le=180, description="Longitude coordinate")
+    confirmed: bool = Field(default=False, description="User confirmed the location")
+
+class DirectionsRequest(BaseModel):
+    """Request schema for getting directions to a property."""
+    origin_lat: float = Field(..., ge=-90, le=90, description="Origin latitude")
+    origin_lng: float = Field(..., ge=-180, le=180, description="Origin longitude")
+    destination_property_id: int = Field(..., gt=0, description="Destination property ID")
+    mode: str = Field(default="driving", pattern="^(driving|walking|transit|bicycling)$", description="Travel mode")
+
+class DirectionsResponse(BaseModel):
+    """Response schema for directions."""
+    distance: str = Field(..., description="Human-readable distance (e.g., '5.2 km')")
+    duration: str = Field(..., description="Human-readable duration (e.g., '15 mins')")
+    polyline: str = Field(..., description="Encoded polyline for route visualization")

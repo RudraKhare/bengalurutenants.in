@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'
 import { Toaster } from 'react-hot-toast'
@@ -20,14 +21,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDFJf8xF1HeZO68GWFGmIUyPRSeNhCGJ2s'}&libraries=places,geometry,marker&v=weekly`}
+          strategy="beforeInteractive"
+        />
+      </head>
       <body className={inter.className}>
         <AuthProvider>
           <div className="min-h-screen bg-gray-50">
           <Toaster position="top-center" toastOptions={{ duration: 5000 }} />
+          
+          {/* Navigation with transparent background for glass effect */}
           <Navigation />
 
-          {/* Main content */}
-          <main className="flex-1">
+          {/* Main content - Added pt-16 to account for fixed header */}
+          <main className="flex-1 pt-16">
             {children}
           </main>
 

@@ -6,6 +6,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { buildApiUrl, getAuthHeaders } from '@/lib/api';
 
+// Convert email to kebab-case username
+const getUsername = (email: string) => {
+  const username = email.split('@')[0];
+  return username.toLowerCase().replace(/[._]/g, '-');
+};
+
 interface UserReview {
   id: number;
   rating: number;
@@ -117,7 +123,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600 mt-1">
-            Welcome back, <span className="font-medium">{user?.email}</span>! 
+            Welcome back, <span className="font-medium">{user?.email ? getUsername(user.email) : ''}</span>! 
             Manage your reviews and properties.
           </p>
         </div>

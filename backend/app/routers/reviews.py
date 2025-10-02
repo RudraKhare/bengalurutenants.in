@@ -5,7 +5,7 @@ Supports CRUD operations with property association and user validation.
 
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_
 
 from ..db import get_db
@@ -44,8 +44,8 @@ async def list_reviews(
         List of reviews with user and property information
     """
     
-    # Start with base query, include user relationship for review author info
-    query = db.query(Review)
+    # Start with base query, include property relationship to load photo_keys
+    query = db.query(Review).options(joinedload(Review.property))
     
     # Apply property filter if specified
     if property_id is not None:

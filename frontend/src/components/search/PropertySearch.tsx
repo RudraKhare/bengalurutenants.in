@@ -10,18 +10,22 @@ interface PropertySearchProps {
 
 export default function PropertySearch({ 
   initialValue = '', 
-  initialPropertyType = 'villaHouse' 
+  initialPropertyType = '' 
 }: PropertySearchProps) {
   const router = useRouter();
 
   // When a search is performed from homepage, we navigate to the search results page
   const handleSearch = (searchTerm: string, propertyType: string) => {
-    router.push(`/property/search?area=${encodeURIComponent(searchTerm)}&propertyType=${propertyType}`);
+    const params = new URLSearchParams();
+    if (searchTerm) params.append('area', searchTerm);
+    if (propertyType) params.append('propertyType', propertyType);
+    
+    router.push(`/property/search${params.toString() ? '?' + params.toString() : ''}`);
   };
   
   return (
-    <div className="mt-8 max-w-3xl mx-auto relative z-10">
-      <div className="shadow-lg rounded-lg overflow-hidden relative">
+    <div className="mt-8 max-w-4xl mx-auto relative z-10">
+      <div className="shadow-2xl rounded-xl overflow-visible relative">
         <SearchInput 
           initialArea={initialValue}
           initialPropertyType={initialPropertyType}

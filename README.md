@@ -2,6 +2,18 @@
 
 A full-stack web platform for tenant reviews and property information, starting with Bengaluru. Tenants can share reviews, experiences, and verify their stays to help others make informed rental decisions.
 
+## ✨ New Feature: Interactive Maps! 🗺️
+
+The platform now includes comprehensive map integration for property discovery and location management:
+
+- **📍 Property Search with Map**: View properties on an interactive map with color-coded ratings
+- **🎯 Location-Based Filtering**: Find properties within a specific radius from your location
+- **📌 Manual Pin-Drop**: Select exact property locations by dragging markers
+- **🔍 Auto-Geocoding**: Automatic address-to-coordinates conversion with caching
+- **🗂️ Multiple View Modes**: List, Split (List+Map), or Map-only views
+
+[🚀 Quick Start Guide](./MAP_QUICK_REFERENCE.md) | [📖 Full Documentation](./docs/MAP_FEATURE_GUIDE.md) | [🏗️ Architecture](./docs/MAP_ARCHITECTURE.md)
+
 ## 🏗️ Architecture
 
 - **Frontend**: Next.js 14 + TypeScript + Tailwind CSS
