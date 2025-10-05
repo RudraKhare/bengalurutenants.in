@@ -5,6 +5,9 @@ import PropertySearch from '@/components/search/PropertySearch'
 import { useState, useEffect } from 'react'
 import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import MobileHomeView from '@/components/MobileHomeView'
+import IndianMonumentsCarousel from '@/components/IndianMonumentsCarousel'
+import ImageWithLoader from '@/components/ImageWithLoader'
 
 interface Review {
   id: number;
@@ -81,7 +84,8 @@ export default function HomePage() {
 
     useEffect(() => {
       const fetchImage = async () => {
-        if (!review.property?.photo_keys || !token) return;
+        // Allow image fetching for all users (logged in or not)
+        if (!review.property?.photo_keys) return;
 
         const firstPhotoKey = review.property.photo_keys.split(',')[0].trim();
         if (!firstPhotoKey) return;
@@ -92,7 +96,8 @@ export default function HomePage() {
             buildApiUrl(API_ENDPOINTS.UPLOADS.VIEW(firstPhotoKey)),
             {
               method: 'GET',
-              headers: getAuthHeaders(token)
+              // Include auth headers only if token exists (for private images)
+              headers: token ? getAuthHeaders(token) : undefined
             }
           );
 
@@ -116,29 +121,13 @@ export default function HomePage() {
         className="card hover:shadow-lg transition-shadow overflow-hidden"
       >
         {/* Property Image */}
-        <div className="relative h-48 bg-gray-200 -m-6 mb-4">
-          {imageLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
-          )}
-          
-          {imageUrl ? (
-            <img 
-              src={imageUrl} 
-              alt={review.property?.area || 'Property'} 
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
-              <div className="text-center text-gray-500">
-                <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                </svg>
-                <p className="text-xs">No Image</p>
-              </div>
-            </div>
-          )}
+        <div className="relative h-48 bg-gray-200 -m-6 mb-4 overflow-hidden">
+          <ImageWithLoader
+            src={imageUrl}
+            alt={review.property?.area || 'Property'}
+            className="h-full"
+            loading={imageLoading}
+          />
         </div>
 
         {/* Review Content */}
@@ -168,53 +157,61 @@ export default function HomePage() {
       </Link>
     );
   };
+  
   return (
+    <>
+      {/* Mobile View - Only visible on screens < 768px */}
+      <div className="md:hidden w-full">
+        <MobileHomeView recentReviews={recentReviews} loading={loading} token={token} />
+      </div>
+
+      {/* Desktop View - Hidden on mobile */}
+      <div className="hidden md:block">
     <div>
-      {/* Hero Section with Animated Background - Covers header area too with negative margin */}
-      <div className="relative bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 overflow-hidden -mt-16 pt-16">
-        {/* Decorative Background Elements - Animated Blobs */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-400 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-teal-400 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
-        <div className="absolute top-20 right-1/4 w-64 h-64 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+      {/* Hero Section with Indian Monuments Background Carousel - FIXED: overflow-visible for dropdown */}
+      <div className="relative overflow-visible -mt-16 pt-16" style={{ zIndex: 30 }}>
+        {/* Background Carousel - Replaces gradient */}
+        <div className="absolute inset-0 overflow-hidden">
+          <IndianMonumentsCarousel showOverlay={true} overlayOpacity={0.5} />
+        </div>
         
         {/* Hero Content */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="relative z-40 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl mb-4">
-              Find a property you can trust
+            <h1 className="text-4xl font-bold text-white sm:text-5xl md:text-6xl mb-4 drop-shadow-lg">
+              Landlords won't tell You. But we will.
             </h1>
-            <p className="mt-3 max-w-2xl mx-auto text-lg text-gray-700 md:text-xl mb-8">
-              Discover, read, and write reviews
+            <p className="mt-3 max-w-2xl mx-auto text-lg text-white/95 md:text-xl mb-8 drop-shadow-md">
+              Discover real tenant stories before renting your next flat.
             </p>
             
-            {/* Search Bar - Client Component */}
-            <div className="relative z-20">
+            {/* Search Bar - Client Component with elevated z-index */}
+            <div className="relative" style={{ zIndex: 50 }}>
               <PropertySearch />
             </div>
           </div>
         </div>
 
         {/* Main Content Links */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="relative z-40 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Link
               href="/property/search"
-              className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              className="text-sm text-white/90 hover:text-white hover:underline drop-shadow-md"
             >
               Advanced Search
             </Link>
-            <span className="text-gray-300">|</span>
+            <span className="text-white/40">|</span>
             <Link
               href="/reviews"
-              className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              className="text-sm text-white/90 hover:text-white hover:underline drop-shadow-md"
             >
               View All Reviews
             </Link>
-            <span className="text-gray-300">|</span>
+            <span className="text-white/40">|</span>
             <Link
               href="/review/add"
-              className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              className="text-sm text-white/90 hover:text-white hover:underline drop-shadow-md"
             >
               Add Review
             </Link>
@@ -222,8 +219,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Recent Reviews Section - Dynamic Data */}
-      <div className="py-12 bg-gray-50">
+      {/* Recent Reviews Section - Dynamic Data - Lower z-index to allow dropdown visibility */}
+      <div className="relative py-12 bg-gray-50" style={{ zIndex: 10 }}>
         <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">
           Recent Reviews
         </h2>
@@ -247,6 +244,187 @@ export default function HomePage() {
           >
             View All Reviews
           </Link>
+        </div>
+      </div>
+
+      {/* Home Provider Section */}
+      <div className="bg-gradient-to-r from-purple-50 to-blue-50 py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            {/* Left: Auto-sliding Image Carousel - 10 Famous Indian Monuments */}
+            <div className="relative h-96 lg:h-[500px] rounded-2xl overflow-hidden shadow-2xl">
+              <div className="carousel-container w-full h-full">
+                {/* 1. Taj Mahal, Agra */}
+                <div className="carousel-slide">
+                  <img 
+                    src="https://images.unsplash.com/photo-1564507592333-c60657eea523?w=1200&h=800&fit=crop&auto=format" 
+                    alt="Taj Mahal, Agra - The iconic symbol of love"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* 2. Gateway of India, Mumbai */}
+                <div className="carousel-slide">
+                  <img 
+                    src="https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=1200&h=800&fit=crop&auto=format" 
+                    alt="Gateway of India, Mumbai"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* 3. Hawa Mahal, Jaipur */}
+                <div className="carousel-slide">
+                  <img 
+                    src="https://images.unsplash.com/photo-1587474260584-136574528ed5?w=1200&h=800&fit=crop&auto=format" 
+                    alt="Hawa Mahal, Jaipur - Palace of Winds"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* 4. India Gate, Delhi */}
+                <div className="carousel-slide">
+                  <img 
+                    src="https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=1200&h=800&fit=crop&auto=format" 
+                    alt="India Gate, Delhi - War memorial"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* 5. Mysore Palace, Mysuru */}
+                <div className="carousel-slide">
+                  <img 
+                    src="https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=1200&h=800&fit=crop&auto=format" 
+                    alt="Mysore Palace, Mysuru - Royal residence"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* 6. Charminar, Hyderabad */}
+                <div className="carousel-slide">
+                  <img 
+                    src="https://images.unsplash.com/photo-1599661046289-e31897846e41?w=1200&h=800&fit=crop&auto=format" 
+                    alt="Charminar, Hyderabad - Monument with four minarets"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* 7. Qutub Minar, Delhi */}
+                <div className="carousel-slide">
+                  <img 
+                    src="https://images.unsplash.com/photo-1597423244036-ef5020e83f3c?w=1200&h=800&fit=crop&auto=format" 
+                    alt="Qutub Minar, Delhi - Tallest brick minaret"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* 8. Victoria Memorial, Kolkata */}
+                <div className="carousel-slide">
+                  <img 
+                    src="https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=1200&h=800&fit=crop&auto=format" 
+                    alt="Victoria Memorial, Kolkata - Grand marble building"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* 9. Golden Temple, Amritsar */}
+                <div className="carousel-slide">
+                  <img 
+                    src="https://images.unsplash.com/photo-1609137144813-7d9921338f24?w=1200&h=800&fit=crop&auto=format" 
+                    alt="Golden Temple, Amritsar - Holiest Gurdwara"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {/* 10. Amer Fort, Jaipur */}
+                <div className="carousel-slide">
+                  <img 
+                    src="https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?w=1200&h=800&fit=crop&auto=format" 
+                    alt="Amer Fort, Jaipur - Majestic hilltop fort"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+              
+              {/* CSS for auto-sliding carousel */}
+              <style jsx>{`
+                .carousel-container {
+                  position: relative;
+                }
+                
+                .carousel-slide {
+                  position: absolute;
+                  top: 0;
+                  left: 0;
+                  width: 100%;
+                  height: 100%;
+                  opacity: 0;
+                  animation: slideShow 50s infinite;
+                }
+                
+                .carousel-slide:nth-child(1) { animation-delay: 0s; }
+                .carousel-slide:nth-child(2) { animation-delay: 5s; }
+                .carousel-slide:nth-child(3) { animation-delay: 10s; }
+                .carousel-slide:nth-child(4) { animation-delay: 15s; }
+                .carousel-slide:nth-child(5) { animation-delay: 20s; }
+                .carousel-slide:nth-child(6) { animation-delay: 25s; }
+                .carousel-slide:nth-child(7) { animation-delay: 30s; }
+                .carousel-slide:nth-child(8) { animation-delay: 35s; }
+                .carousel-slide:nth-child(9) { animation-delay: 40s; }
+                .carousel-slide:nth-child(10) { animation-delay: 45s; }
+                
+                @keyframes slideShow {
+                  0% { opacity: 0; transform: scale(1); }
+                  2% { opacity: 1; transform: scale(1.05); }
+                  10% { opacity: 1; transform: scale(1.05); }
+                  12% { opacity: 0; transform: scale(1); }
+                  100% { opacity: 0; transform: scale(1); }
+                }
+              `}</style>
+            </div>
+            
+            {/* Right: Content */}
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-sm font-semibold text-purple-600 uppercase tracking-wide mb-2">
+                  Redefining Rental Relationships
+                </h2>
+                <h3 className="text-4xl font-bold text-gray-900 mb-4">
+                  I am a <span className="line-through text-gray-400">landlord</span>.
+                  <br />
+                  <span className="text-purple-700">Home Provider</span>
+                </h3>
+              </div>
+              
+              <div className="bg-white rounded-xl p-6 shadow-lg">
+                <h4 className="text-2xl font-bold text-gray-900 mb-3">
+                  Home Provider
+                </h4>
+                <p className="text-gray-600 mb-2">
+                  <span className="font-semibold">(hōm prə'vīdər)</span>
+                  <br />
+                  <span className="text-sm italic">noun</span>
+                </p>
+                <p className="text-gray-700 text-lg leading-relaxed">
+                  An owner/operator who views their resident(s) as human, first, and deserving of respect and dignity. 
+                  They see their residents as part of the solution and not a part of the product.
+                </p>
+              </div>
+              
+              <div className="bg-purple-100 rounded-xl p-4 flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <svg className="w-6 h-6 text-purple-700" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <p className="text-sm text-purple-900">
+                  <span className="font-semibold">The term 'Home Provider' has received official recognition from the Dictionary.</span>
+                </p>
+              </div>
+              
+              <div className="pt-4">
+                <a 
+                  href="#" 
+                  className="inline-flex items-center text-purple-700 font-semibold hover:text-purple-800 transition-colors"
+                >
+                  Learn more
+                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -375,6 +553,8 @@ export default function HomePage() {
         </div>
       </div>
       </div>
+      </div>
     </div>
+    </>
   )
 }

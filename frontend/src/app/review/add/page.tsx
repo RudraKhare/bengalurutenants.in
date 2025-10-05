@@ -7,7 +7,6 @@ import PhotoUpload from '@/components/PhotoUpload'
 import MapPicker from '@/components/MapPicker'
 import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '@/lib/api'
 import toast from 'react-hot-toast'
-import { AllCityLocalities } from '@/lib/localities'
 import { getFuzzyLocalitySuggestions } from '@/lib/fuzzyLocality'
 import { CityCenters } from '@/lib/cities'
 
@@ -16,9 +15,16 @@ export default function AddReviewPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAuthRedirect, setShowAuthRedirect] = useState(false);
+  
+  // Data from API
+  const [allCities, setAllCities] = useState<string[]>([]);
+  const [allLocalities, setAllLocalities] = useState<string[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [isLoadingLocalities, setIsLoadingLocalities] = useState(false);
+  
   const [formData, setFormData] = useState({
     propertyAddress: '',
-    city: Object.keys(AllCityLocalities)[0], // Default to first city
+    city: 'Bengaluru', // Default city
     area: '',
     propertyType: 'FLAT_APARTMENT', // New property type field
     rating: 5,
@@ -47,14 +53,32 @@ export default function AddReviewPage() {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [citySearch, setCitySearch] = useState('');
   const cityDropdownRef = useRef<HTMLDivElement>(null);
-  const allCities = Object.keys(AllCityLocalities);
-  const filteredCities = citySearch.trim() === '' ? allCities : allCities.filter(city => city.toLowerCase().includes(citySearch.toLowerCase()));
+  const filteredCities = citySearch.trim() === '' ? allCities : allCities.filter((city: string) => city.toLowerCase().includes(citySearch.toLowerCase()));
 
   // Center map at city center
   const DEFAULT_CITY = 'Bengaluru';
   const DEFAULT_COORDS = { lat: 12.9716, lng: 77.5946 };
   const [mapLat, setMapLat] = useState<number>(DEFAULT_COORDS.lat);
   const [mapLng, setMapLng] = useState<number>(DEFAULT_COORDS.lng);
+
+  // Fetch cities on component mount
+  useEffect(() => {
+    async function fetchCities() {
+      setIsLoadingCities(true);
+      try {
+        const response = await fetch(buildApiUrl(API_ENDPOINTS.CITIES.LIST));
+        if (response.ok) {
+          const cities = await response.json();
+          setAllCities(cities.map((city: any) => city.name));
+        }
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+      } finally {
+        setIsLoadingCities(false);
+      }
+    }
+    fetchCities();
+  }, []);
 
   // Handle authentication redirect
   useEffect(() => {
@@ -66,15 +90,36 @@ export default function AddReviewPage() {
     }
   }, [isAuthenticated, router]);
   
-  // Update locality suggestions when city or area changes
+  // Fetch localities when city changes
   useEffect(() => {
-    const cityLocalities = AllCityLocalities[formData.city] || [];
-    if (formData.area.trim() === '') {
-      setFilteredLocalities(cityLocalities.slice(0, 20));
-    } else {
-      setFilteredLocalities(getFuzzyLocalitySuggestions(cityLocalities, formData.area));
+    async function fetchLocalities() {
+      if (!formData.city) return;
+      
+      setIsLoadingLocalities(true);
+      try {
+        const response = await fetch(buildApiUrl(API_ENDPOINTS.CITIES.LOCALITIES(formData.city)));
+        if (response.ok) {
+          const localities = await response.json();
+          setAllLocalities(localities.map((locality: any) => locality.name));
+        }
+      } catch (error) {
+        console.error('Error fetching localities:', error);
+        setAllLocalities([]);
+      } finally {
+        setIsLoadingLocalities(false);
+      }
     }
-  }, [formData.area, formData.city]);
+    fetchLocalities();
+  }, [formData.city]);
+  
+  // Update locality suggestions when area changes
+  useEffect(() => {
+    if (formData.area.trim() === '') {
+      setFilteredLocalities(allLocalities.slice(0, 20));
+    } else {
+      setFilteredLocalities(getFuzzyLocalitySuggestions(allLocalities, formData.area));
+    }
+  }, [formData.area, allLocalities]);
 
   // Move map to city center when city changes
   useEffect(() => {
@@ -185,26 +230,17 @@ export default function AddReviewPage() {
       const propertyData = await propertyResponse.json();
       const propertyId = propertyData.id;
 
-      // Format all the information into a detailed review body
-      const reviewBody = `
-Overall Rating: ${formData.rating}/5
-Cleanliness: ${formData.cleanliness}/5
-Landlord Rating: ${formData.landlordRating}/5
-Location: ${formData.location}/5
-Value For Money: ${formData.valueForMoney}/5
-
-${formData.comment || 'No additional comments provided.'}
-      `.trim();
-      
       // Update toast message
       toast.loading('Submitting your review...', { id: loadingToast })
       
       // Now prepare the review data using the new property_id
+      // Note: Only send the user's actual comment text, not the rating breakdown
+      // The detailed ratings are shown separately in the UI
       const reviewData = {
         property_id: propertyId,
         property_type: formData.propertyType, // Include user-confirmed property type
         rating: formData.rating,
-        comment: reviewBody, 
+        comment: formData.comment || null, // Only the user's textual review 
         // Include photo keys only if there are any
         ...(formData.photoKeys.length > 0 ? { photo_keys: formData.photoKeys.join(',') } : {})
       }
@@ -299,64 +335,64 @@ ${formData.comment || 'No additional comments provided.'}
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-8">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-6">
+      <div className="bg-white border-b border-gray-200 px-3 sm:px-4 md:px-6 py-4 sm:py-5 md:py-6">
         <div className="max-w-[1800px] mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">
             Share Your Rental Experience
           </h1>
-          <p className="text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600">
             Help other tenants by sharing your honest review of the property and landlord.
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="max-w-[1800px] mx-auto px-6 py-6 space-y-6">
+      <form onSubmit={handleSubmit} className="max-w-[1800px] mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-5 md:py-6 space-y-4 sm:space-y-5 md:space-y-6">
         {/* Row 1: Property Information (Left) + Map (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
           {/* Left: Property Information */}
           <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Property Information</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-5 md:mb-6">Property Information</h2>
             
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {/* City Dropdown - Custom Styled */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
+              <div className="mb-3 sm:mb-4">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">City *</label>
                 <div className="relative z-40" ref={cityDropdownRef}>
                   <button
                     type="button"
                     onClick={() => setShowCityDropdown(!showCityDropdown)}
-                    className="w-full bg-red-500 hover:bg-red-600 text-white text-left font-medium px-4 py-4 rounded-xl shadow-lg border border-gray-200 transition-colors flex items-center justify-between"
+                    className="w-full bg-white hover:bg-gray-50 text-gray-900 text-left font-medium px-3 sm:px-4 py-3 sm:py-4 rounded-lg sm:rounded-xl shadow-md sm:shadow-lg border border-gray-300 transition-colors flex items-center justify-between text-sm sm:text-base"
                   >
                     <span className="truncate">{formData.city}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 ml-2 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                   {showCityDropdown && (
-                    <div className="absolute left-0 top-full w-full z-[99999] bg-white border-2 border-gray-300 rounded-xl shadow-2xl">
-                      <div className="p-3">
+                    <div className="absolute left-0 top-full w-full z-[99999] bg-white border-2 border-gray-300 rounded-lg sm:rounded-xl shadow-xl sm:shadow-2xl">
+                      <div className="p-2 sm:p-3">
                         <input
                           type="text"
                           value={citySearch}
                           onChange={e => setCitySearch(e.target.value)}
                           placeholder="Search city..."
-                          className="w-full px-3 py-2 mb-3 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 mb-2 sm:mb-3 text-xs sm:text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
-                        <div className="max-h-60 overflow-auto">
+                        <div className="max-h-48 sm:max-h-60 overflow-auto">
                           {filteredCities.map(city => (
                             <button
                               key={city}
                               type="button"
                               onClick={() => { handleInputChange('city', city); setShowCityDropdown(false); setCitySearch(''); }}
-                              className="w-full text-left px-3 py-2 text-sm text-gray-900 hover:bg-blue-50 rounded cursor-pointer transition-colors mb-1"
+                              className="w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 hover:bg-blue-50 rounded cursor-pointer transition-colors mb-0.5 sm:mb-1"
                             >
                               {city}
                             </button>
                           ))}
                           {filteredCities.length === 0 && (
-                            <div className="text-gray-500 text-sm px-3 py-2">No cities found</div>
+                            <div className="text-gray-500 text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">No cities found</div>
                           )}
                         </div>
                       </div>
@@ -366,9 +402,9 @@ ${formData.comment || 'No additional comments provided.'}
               </div>
               {/* Property Address */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Property Address *</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Property Address *</label>
                 <textarea
-                  className="input-field px-4 py-4 border border-gray-200 rounded-xl shadow-lg bg-white/60 backdrop-blur-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base transition-all duration-150"
+                  className="input-field px-3 sm:px-4 py-3 sm:py-4 border border-gray-200 rounded-lg sm:rounded-xl shadow-md sm:shadow-lg bg-white/60 backdrop-blur-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base transition-all duration-150"
                   style={{ WebkitBackdropFilter: 'blur(8px)' }}
                   rows={3}
                   placeholder="Enter complete address including building name, street, etc."
@@ -379,11 +415,11 @@ ${formData.comment || 'No additional comments provided.'}
               </div>
               {/* Area/Locality Dropdown */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Area/Locality *</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Area/Locality *</label>
                 <div className="relative">
                   <input
                     type="text"
-                    className="input-field px-4 py-4 border border-gray-200 rounded-xl shadow-lg bg-white/60 backdrop-blur-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base transition-all duration-150"
+                    className="input-field px-3 sm:px-4 py-3 sm:py-4 border border-gray-200 rounded-lg sm:rounded-xl shadow-md sm:shadow-lg bg-white/60 backdrop-blur-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base transition-all duration-150"
                     style={{ WebkitBackdropFilter: 'blur(8px)' }}
                     placeholder="e.g., Koramangala, Indiranagar, HSR Layout"
                     value={formData.area}
@@ -395,7 +431,7 @@ ${formData.comment || 'No additional comments provided.'}
                   {showLocalityDropdown && filteredLocalities.length > 0 && (
                     <div
                       ref={localityDropdownRef}
-                      className="absolute z-[99999] mt-1 w-full bg-white/80 border border-gray-200 rounded-xl shadow-2xl backdrop-blur-md max-h-60 overflow-auto transition-all duration-150"
+                      className="absolute z-[99999] mt-1 w-full bg-white/80 border border-gray-200 rounded-lg sm:rounded-xl shadow-xl sm:shadow-2xl backdrop-blur-md max-h-48 sm:max-h-60 overflow-auto transition-all duration-150"
                       style={{ top: '100%', left: 0, WebkitBackdropFilter: 'blur(8px)' }}
                     >
                       {filteredLocalities.map((locality) => (
@@ -403,7 +439,7 @@ ${formData.comment || 'No additional comments provided.'}
                           key={locality}
                           type="button"
                           onClick={() => { handleInputChange('area', locality); setShowLocalityDropdown(false); }}
-                          className="w-full text-left px-4 py-3 text-base text-gray-800 hover:bg-blue-50 hover:text-blue-600 cursor-pointer border-b border-gray-100 last:border-0 transition-all duration-100"
+                          className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-800 hover:bg-blue-50 hover:text-blue-600 cursor-pointer border-b border-gray-100 last:border-0 transition-all duration-100"
                         >
                           {locality}
                         </button>
@@ -414,10 +450,10 @@ ${formData.comment || 'No additional comments provided.'}
               </div>
               {/* Property Type Dropdown */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Property Type *</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Property Type *</label>
                 <div className="relative">
                   <select
-                    className="input-field px-4 py-4 pr-10 border border-gray-200 rounded-xl shadow-lg bg-white/60 backdrop-blur-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base appearance-none transition-all duration-150"
+                    className="input-field px-3 sm:px-4 py-3 sm:py-4 pr-8 sm:pr-10 border border-gray-200 rounded-lg sm:rounded-xl shadow-md sm:shadow-lg bg-white/60 backdrop-blur-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base appearance-none transition-all duration-150"
                     style={{ WebkitBackdropFilter: 'blur(8px)' }}
                     value={formData.propertyType}
                     onChange={e => handleInputChange('propertyType', e.target.value)}
@@ -427,7 +463,7 @@ ${formData.comment || 'No additional comments provided.'}
                     <option value="VILLA_HOUSE">Villa/House</option>
                     <option value="PG_HOSTEL">PG/Hostel</option>
                   </select>
-                  <span className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400">▼</span>
+                  <span className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400 text-sm">▼</span>
                 </div>
               </div>
             </div>
@@ -435,25 +471,24 @@ ${formData.comment || 'No additional comments provided.'}
 
           {/* Right: Map (Always Visible) */}
           <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">📍 Property Location</h2>
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">📍 Property Location</h2>
               {!locationConfirmed && (
-                <span className="text-xs text-gray-500">Drag marker to exact location</span>
+                <span className="text-xs text-gray-500 hidden sm:inline">Drag marker to exact location</span>
               )}
             </div>
             <MapPicker
-              onSelect={handleLocationSelect}
+              onLocationSelect={handleLocationSelect}
               lat={mapLat}
               lng={mapLng}
               height="400px"
-              className="mt-4"
             />
             {!locationConfirmed && (
-              <div className="mt-4">
+              <div className="mt-3 sm:mt-4">
                 <button
                   type="button"
                   onClick={handleConfirmLocation}
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm sm:text-base"
                 >
                   ✓ Confirm This Location
                 </button>
@@ -466,19 +501,19 @@ ${formData.comment || 'No additional comments provided.'}
         </div> {/* Close grid container for property info + map */}
 
         {/* Row 2: Overall Rating + Written Review (Left) + Detailed Ratings (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
           {/* Left: Overall Rating + Written Review */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-5 md:space-y-6">
             {/* Overall Rating */}
             <div className="card">
-              <div className="flex items-center justify-center space-x-4 py-4">
-                <span className="text-sm font-medium text-gray-700">Rate your experience:</span>
-                <div className="flex space-x-2">
+              <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4 py-3 sm:py-4">
+                <span className="text-xs sm:text-sm font-medium text-gray-700">Rate your experience:</span>
+                <div className="flex space-x-1 sm:space-x-2">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
-                      className={`w-10 h-10 ${star <= formData.rating ? 'text-yellow-400' : 'text-gray-300'} transition-colors`}
+                      className={`w-8 h-8 sm:w-10 sm:h-10 ${star <= formData.rating ? 'text-yellow-400' : 'text-gray-300'} transition-colors`}
                       onClick={() => handleInputChange('rating', star)}
                     >
                       <svg className="w-full h-full fill-current" viewBox="0 0 20 20">
@@ -487,26 +522,26 @@ ${formData.comment || 'No additional comments provided.'}
                     </button>
                   ))}
                 </div>
-                <span className="text-2xl font-bold text-gray-900">{formData.rating}/5</span>
+                <span className="text-xl sm:text-2xl font-bold text-gray-900">{formData.rating}/5</span>
               </div>
             </div>
 
             {/* Written Review */}
             <div className="card">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Written Review</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-5 md:mb-6">Written Review</h2>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Share your experience in detail
                 </label>
                 <textarea
-                  className="input-field"
+                  className="input-field text-sm sm:text-base"
                   rows={8}
                   value={formData.comment}
                   onChange={(e) => handleInputChange('comment', e.target.value)}
                   placeholder="Tell us about your experience living here. Include details about the property condition, landlord behavior, neighborhood, amenities, etc."
                   required
                 />
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-xs sm:text-sm text-gray-500 mt-2">
                   Be honest and specific. Your review will help other tenants make informed decisions.
                 </p>
               </div>
@@ -515,25 +550,25 @@ ${formData.comment || 'No additional comments provided.'}
 
           {/* Right: Detailed Ratings */}
           <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Detailed Ratings</h2>
-            <div className="space-y-6">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-5 md:mb-6">Detailed Ratings</h2>
+            <div className="space-y-4 sm:space-y-5 md:space-y-6">
               {[
                 { key: 'cleanliness', label: 'Cleanliness & Maintenance', icon: '🧹' },
                 { key: 'landlordRating', label: 'Landlord Behavior', icon: '👤' },
                 { key: 'location', label: 'Location & Connectivity', icon: '📍' },
                 { key: 'valueForMoney', label: 'Value for Money', icon: '💰' }
               ].map(({ key, label, icon }) => (
-                <div key={key} className="bg-gray-50 p-4 rounded-lg">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                <div key={key} className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
                     {icon} {label}
                   </label>
                   <div className="flex items-center justify-between">
-                    <div className="flex space-x-1">
+                    <div className="flex space-x-0.5 sm:space-x-1">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
                           key={star}
                           type="button"
-                          className={`w-8 h-8 ${star <= (formData[key as keyof typeof formData] as number) ? 'text-yellow-400' : 'text-gray-300'} transition-colors`}
+                          className={`w-7 h-7 sm:w-8 sm:h-8 ${star <= (formData[key as keyof typeof formData] as number) ? 'text-yellow-400' : 'text-gray-300'} transition-colors`}
                           onClick={() => handleInputChange(key, star)}
                         >
                           <svg className="w-full h-full fill-current" viewBox="0 0 20 20">
@@ -542,7 +577,7 @@ ${formData.comment || 'No additional comments provided.'}
                         </button>
                       ))}
                     </div>
-                    <span className="text-lg font-bold text-gray-900 ml-3">
+                    <span className="text-base sm:text-lg font-bold text-gray-900 ml-2 sm:ml-3">
                       {formData[key as keyof typeof formData] as number}/5
                     </span>
                   </div>
@@ -553,22 +588,22 @@ ${formData.comment || 'No additional comments provided.'}
         </div> {/* Close grid container for overall rating + review + detailed ratings */}
 
         {/* Row 3: Photo Upload (Left) + Verification (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
           {/* Left: Photo Upload */}
           <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">📸 Add Photos (Optional)</h2>
-            <p className="text-gray-600 mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-5 md:mb-6">📸 Add Photos (Optional)</h2>
+            <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
               Upload photos to support your review. Photos help other tenants see the actual condition of the property.
             </p>
             <PhotoUpload
               fileType="review"
               onUploadComplete={handlePhotoUpload}
               maxFiles={5}
-              className="mb-4"
+              className="mb-3 sm:mb-4"
             />
             {formData.photoKeys.length > 0 && (
-              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
-                <p className="text-sm text-green-800">
+              <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-xs sm:text-sm text-green-800">
                   ✅ {formData.photoKeys.length} photo(s) uploaded successfully
                 </p>
               </div>
@@ -577,18 +612,18 @@ ${formData.comment || 'No additional comments provided.'}
 
           {/* Right: Verification */}
           <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">🔒 Verification (Optional)</h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-5 md:mb-6">🔒 Verification (Optional)</h2>
+            <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
               Verify your tenancy to increase trust in your review. Verified reviews are given more weight.
             </p>
-            <div className="space-y-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-3 sm:space-y-4">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                 Verification Method
               </label>
               <select
                 value={formData.verificationMethod}
                 onChange={(e) => handleInputChange('verificationMethod', e.target.value)}
-                className="input-field"
+                className="input-field text-sm sm:text-base"
               >
                 <option value="rental_agreement">Rental Agreement</option>
                 <option value="upi_transaction">UPI Transaction Receipt</option>
@@ -596,14 +631,14 @@ ${formData.comment || 'No additional comments provided.'}
                 <option value="bank_statement">Bank Statement</option>
                 <option value="photos">Property Photos</option>
               </select>
-              <div className="border-dashed border-2 border-gray-300 rounded-lg p-6 text-center">
-                <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+              <div className="border-dashed border-2 border-gray-300 rounded-lg p-4 sm:p-5 md:p-6 text-center">
+                <svg className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                   <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span className="mt-2 block text-sm font-medium text-gray-900">
+                <span className="mt-2 block text-xs sm:text-sm font-medium text-gray-900">
                   Upload verification document
                 </span>
-                <span className="mt-1 block text-sm text-gray-600">
+                <span className="mt-1 block text-xs sm:text-sm text-gray-600">
                   PNG, JPG, PDF up to 10MB
                 </span>
                 <input id="file-upload" name="file-upload" type="file" className="sr-only" />
@@ -617,16 +652,16 @@ ${formData.comment || 'No additional comments provided.'}
 
         {/* Row 4: Terms and Submit (Full Width) */}
         <div className="card">
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <label className="flex items-start">
               <input
                 type="checkbox"
-                className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                className="mt-0.5 sm:mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 checked={formData.agreeToTerms}
                 onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
                 required
               />
-              <span className="ml-2 text-sm text-gray-600">
+              <span className="ml-2 text-xs sm:text-sm text-gray-600">
                 I agree to the{' '}
                 <a href="/terms" className="text-primary-600 hover:text-primary-500">
                   Terms of Service
@@ -638,17 +673,17 @@ ${formData.comment || 'No additional comments provided.'}
                 . I confirm that this review is based on my genuine experience as a tenant.
               </span>
             </label>
-            <div className="flex justify-end space-x-4">
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 md:space-x-4">
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-secondary w-full sm:w-auto px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 text-sm sm:text-base"
                 onClick={() => window.history.back()}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="btn-primary"
+                className="btn-primary w-full sm:w-auto px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 text-sm sm:text-base"
                 disabled={!formData.agreeToTerms || isSubmitting}
               >
                 {isSubmitting ? 'Submitting...' : 'Submit Review'}

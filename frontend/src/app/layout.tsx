@@ -4,7 +4,7 @@ import Script from 'next/script'
 import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'
 import { Toaster } from 'react-hot-toast'
-import { Navigation } from '@/components'
+import { Navigation, MobileNavigation } from '@/components'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -29,19 +29,24 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <AuthProvider>
-          <div className="min-h-screen bg-gray-50">
+          <div className="w-full min-h-screen bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 overflow-x-hidden">
           <Toaster position="top-center" toastOptions={{ duration: 5000 }} />
           
-          {/* Navigation with transparent background for glass effect */}
-          <Navigation />
+          {/* Desktop Navigation - Hidden on mobile */}
+          <div className="hidden md:block">
+            <Navigation />
+          </div>
 
-          {/* Main content - Added pt-16 to account for fixed header */}
-          <main className="flex-1 pt-16">
+          {/* Mobile Navigation - Visible only on mobile */}
+          <MobileNavigation />
+
+          {/* Main content - Different padding for mobile and desktop */}
+          <main className="w-full flex-1 pt-16 md:pt-16 overflow-x-hidden bg-white/80 md:bg-white">
             {children}
           </main>
 
-          {/* Footer */}
-          <footer className="bg-white border-t border-gray-200 mt-12">
+          {/* Footer - Hidden on mobile to avoid conflicting with bottom nav */}
+          <footer className="hidden md:block bg-white border-t border-gray-200 mt-12">
             <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
               <div className="text-center text-gray-600">
                 <p>&copy; 2025 OpenReviews.in. Helping renters make informed decisions.</p>

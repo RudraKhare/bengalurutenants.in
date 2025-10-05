@@ -48,6 +48,8 @@ export default function PropertyMap({
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Initialize map
   useEffect(() => {
@@ -55,7 +57,19 @@ export default function PropertyMap({
 
     const initMap = async () => {
       try {
-        // Load Google Maps API
+        setIsLoading(true);
+        setError(null);
+        
+        // Wait for Google Maps API to be available
+        if (!(window as any).google?.maps) {
+          console.log('Waiting for Google Maps API...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          if (!(window as any).google?.maps) {
+            throw new Error('Google Maps API not loaded');
+          }
+        }
+        
+        // Load Google Maps library
         const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
         
         // Determine center
@@ -74,6 +88,8 @@ export default function PropertyMap({
           center = GOOGLE_MAPS_CONFIG.defaultCenter;
         }
 
+        console.log('Initializing map with center:', center, 'properties:', properties.length);
+
         const mapInstance = new Map(mapRef.current!, {
           center,
           zoom,
@@ -88,8 +104,27 @@ export default function PropertyMap({
 
         const infoWindowInstance = new google.maps.InfoWindow();
         setInfoWindow(infoWindowInstance);
+        
+        // Trigger resize after map loads
+        google.maps.event.addListenerOnce(mapInstance, 'tilesloaded', () => {
+          console.log('Map tiles loaded');
+          setIsLoading(false);
+          google.maps.event.trigger(mapInstance, 'resize');
+          mapInstance.setCenter(center);
+        });
+        
+        // Fallback: trigger resize after delay
+        setTimeout(() => {
+          if (mapInstance) {
+            google.maps.event.trigger(mapInstance, 'resize');
+            mapInstance.setCenter(center);
+            setIsLoading(false);
+          }
+        }, 1000);
       } catch (error) {
         console.error('Error loading Google Maps:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load map');
+        setIsLoading(false);
       }
     };
 
@@ -198,17 +233,72 @@ export default function PropertyMap({
 
   }, [map, infoWindow, properties, selectedPropertyId]);
 
+  // Trigger resize when container becomes visible (fixes blank map in modals/overlays)
+  useEffect(() => {
+    if (!map) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      google.maps.event.trigger(map, 'resize');
+      
+      // Re-fit bounds if we have properties and no custom center
+      if (properties.length > 0 && !centerLat && !centerLng) {
+        const bounds = new google.maps.LatLngBounds();
+        properties.forEach(property => {
+          if (property.lat && property.lng) {
+            bounds.extend({ lat: property.lat, lng: property.lng });
+          }
+        });
+        map.fitBounds(bounds);
+      }
+    });
+
+    if (mapRef.current) {
+      resizeObserver.observe(mapRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [map, properties, centerLat, centerLng]);
+
   return (
-    <div className="relative">
+    <div className="relative w-full" style={{ height }}>
       <div 
         ref={mapRef} 
-        style={{ height, width: '100%' }}
+        style={{ height: '100%', width: '100%' }}
         className="rounded-lg border border-gray-300 shadow-sm"
       />
       
-      {properties.length === 0 && (
+      {/* Loading State */}
+      {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 rounded-lg">
           <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-3"></div>
+            <p className="text-gray-600 text-sm font-medium">Loading map...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Error State */}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-50 rounded-lg">
+          <div className="text-center p-4">
+            <svg className="w-12 h-12 text-red-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-red-600 text-sm font-medium">Failed to load map</p>
+            <p className="text-red-500 text-xs mt-1">{error}</p>
+          </div>
+        </div>
+      )}
+      
+      {/* No Properties State */}
+      {!isLoading && !error && properties.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 rounded-lg">
+          <div className="text-center">
+            <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
             <p className="text-gray-500 text-lg font-medium">No properties to display</p>
             <p className="text-gray-400 text-sm mt-1">Try adjusting your filters</p>
           </div>

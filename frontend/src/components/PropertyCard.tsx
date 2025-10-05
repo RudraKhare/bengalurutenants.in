@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import ImageWithLoader from './ImageWithLoader';
 
 interface Property {
   id: number;
@@ -17,6 +18,7 @@ interface Property {
   avg_rating?: number;
   review_count: number;
   rent_amount?: number;
+  latest_review?: string; // Latest review comment
 }
 
 interface PropertyCardProps {
@@ -28,6 +30,7 @@ export default function PropertyCard({ property, propertyType }: PropertyCardPro
   const { token } = useAuth();
   const [mainPhotoUrl, setMainPhotoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [latestReview, setLatestReview] = useState<{ comment: string | null; rating: number } | null>(null);
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -45,7 +48,7 @@ export default function PropertyCard({ property, propertyType }: PropertyCardPro
   };
 
   // Render star rating
-  const renderStars = (rating: number = 0) => {
+  const renderStars = (rating: number) => {
     return (
       <div className="flex items-center">
         {[...Array(5)].map((_, i) => (
@@ -57,22 +60,8 @@ export default function PropertyCard({ property, propertyType }: PropertyCardPro
             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.922-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
           </svg>
         ))}
-        <span className="ml-1 text-sm font-medium text-gray-500">{rating ? rating.toFixed(1) : 'No ratings'}</span>
       </div>
     );
-  };
-
-  // Get property type display text
-  const getPropertyTypeText = (type: string) => {
-    switch (type) {
-      case 'villaHouse':
-      case 'VILLA_HOUSE': return 'Villa/House';
-      case 'flatApartment':
-      case 'FLAT_APARTME': return 'Flat/Apartment';
-      case 'pgHostel':
-      case 'PG_HOSTEL': return 'PG/Hostel';
-      default: return 'Property';
-    }
   };
 
   // Load the main photo for the property card
@@ -137,59 +126,51 @@ export default function PropertyCard({ property, propertyType }: PropertyCardPro
 
   }, [property.photo_keys, token]);
 
+  // Fetch latest review for the property
+  useEffect(() => {
+    const apiUrl = `http://localhost:8000/api/v1/reviews/?property_id=${property.id}&limit=1`;
+    console.log(`📝 Fetching review for property ${property.id}:`, apiUrl);
+    
+    // Fetch the latest review comment and rating for this property
+    fetch(apiUrl)
+      .then(response => {
+        console.log(`📝 Review API Response for property ${property.id}:`, response.status, response.ok);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log(`📝 Review data for property ${property.id}:`, data);
+        if (data.reviews && data.reviews.length > 0) {
+          console.log(`✅ Found review for property ${property.id}:`, {
+            comment: data.reviews[0].comment,
+            rating: data.reviews[0].rating
+          });
+          setLatestReview({
+            comment: data.reviews[0].comment,
+            rating: data.reviews[0].rating
+          });
+        } else {
+          console.log(`⚠️ No reviews found for property ${property.id}`);
+        }
+      })
+      .catch(error => {
+        console.error(`❌ Failed to fetch review for property ${property.id}:`, error);
+      });
+  }, [property.id]);
+
   return (
     <Link href={`/property/${property.id}`} className="block">
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow">
         {/* Property Image */}
-        <div className="relative h-48 bg-gray-200">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
-          )}
-          
-          {/* Display the actual property image if available, otherwise use a placeholder */}
-          {mainPhotoUrl ? (
-            <img 
-              src={mainPhotoUrl} 
-              alt={property.address} 
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                // Fallback to placeholder on error
-                (e.target as HTMLImageElement).src = `https://picsum.photos/800/600?random=${property.id}`;
-              }}
-            />
-          ) : (
-            <img 
-              src={`https://picsum.photos/800/600?random=${property.id}`} 
-              alt={property.address} 
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                // Ultimate fallback to a solid color div
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const parent = target.parentElement;
-                if (parent) {
-                  parent.innerHTML = `
-                    <div class="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
-                      <div class="text-center text-gray-600">
-                        <svg class="w-16 h-16 mx-auto mb-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-                        </svg>
-                        <p class="text-sm">Property Image</p>
-                      </div>
-                    </div>
-                  `;
-                }
-              }}
-            />
-          )}
-          
-          <div className="absolute top-0 right-0 m-2">
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-500 text-white">
-              {getPropertyTypeText(propertyType)}
-            </span>
-          </div>
+        <div className="relative h-48 bg-gray-200 overflow-hidden">
+          <ImageWithLoader
+            src={mainPhotoUrl}
+            alt={property.address}
+            className="h-full"
+            loading={loading}
+          />
         </div>
         
         {/* Property Details */}
@@ -206,26 +187,29 @@ export default function PropertyCard({ property, propertyType }: PropertyCardPro
             )}
           </div>
           
-          <p className="text-gray-600 text-sm mb-2">
+          <p className="text-gray-600 text-sm mb-3">
             {property.area && `${property.area}, `}{property.city}
           </p>
           
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center">
-              {renderStars(property.avg_rating)}
+          {/* Latest Review Comment (if available) */}
+          {latestReview && latestReview.comment && (
+            <div className="mb-3">
+              <p className="text-sm text-gray-600 italic line-clamp-1">
+                "{latestReview.comment}"
+              </p>
             </div>
-            <div className="text-sm font-medium text-blue-600">
-              View Details
-            </div>
-          </div>
+          )}
           
-          <div className="flex justify-between items-center text-sm text-gray-500 pt-2 border-t border-gray-100">
-            <div>
-              {property.review_count} {property.review_count === 1 ? 'review' : 'reviews'}
-            </div>
+          {/* Footer with date on left, stars on right */}
+          <div className="flex items-center justify-between text-sm text-gray-500 pt-2 border-t border-gray-100">
             <div>
               Added {formatDate(property.created_at)}
             </div>
+            {latestReview && (
+              <div className="flex items-center">
+                {renderStars(latestReview.rating)}
+              </div>
+            )}
           </div>
         </div>
       </div>

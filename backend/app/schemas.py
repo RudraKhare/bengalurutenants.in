@@ -71,6 +71,7 @@ class ReviewOut(BaseModel):
     verification_level: str
     upvotes: int = 0  # Using plural form to match database column
     downvotes: int = 0  # Using plural form to match database column
+    is_verified: bool = False  # Admin verification status
     created_at: datetime
     property: Optional[PropertyOut] = None  # Include related property data
     

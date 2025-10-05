@@ -22,7 +22,7 @@ async function getProperty(id: string) {
 async function getPropertyReviews(id: string) {
   try {
     const response = await fetch(`http://localhost:8000/api/v1/reviews?property_id=${id}`, {
-      next: { revalidate: 60 }, // Cache for 1 minute
+      cache: 'no-store', // Don't cache reviews - always fetch fresh data to show verified status
     });
     
     if (!response.ok) {

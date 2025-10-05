@@ -58,3 +58,102 @@ body {
   animation-delay: 4s;
 }
 
+/* Mobile-specific styles */
+@media (max-width: 767px) {
+  /* Ensure mobile layout takes full width */
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Force full width on mobile containers */
+  body > div,
+  #__next,
+  main {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden;
+  }
+
+  /* Glassmorphism effects */
+  .glass-header {
+    background: rgba(255, 255, 255, 0.30);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    height: 48px; /* Matches height from visual guide (py-3) */
+    box-shadow: 0 1px 10px rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Gradient matching the web homepage */
+  .web-gradient {
+    background: linear-gradient(
+      to bottom right,
+      rgba(229, 231, 235, 1),  /* from-gray-200 */
+      rgba(209, 213, 219, 1),  /* via-gray-300 */
+      rgba(156, 163, 175, 1)   /* to-gray-400 */
+    );
+  }
+
+  /* Smooth gradient transitions */
+  .gradient-fade {
+    background: linear-gradient(
+      to bottom,
+      rgba(156, 163, 175, 1),  /* gray-400 */
+      rgba(249, 250, 251, 1)   /* gray-50 */
+    );
+    height: 60px;
+  }
+
+  /* Mobile bottom navigation safe area */
+  .mobile-content {
+    padding-bottom: 80px; /* Space for bottom navigation */
+  }
+
+  /* Remove desktop padding on mobile */
+  .desktop-only {
+    display: none !important;
+  }
+
+  /* Mobile card spacing */
+  .mobile-card {
+    margin-bottom: 0.75rem;
+    width: 100%;
+  }
+
+  /* Mobile search input */
+  .mobile-search-input {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  /* Glassmorphism effect for mobile header */
+  .glass-header {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* Side drawer slide animation */
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  .drawer-enter {
+    animation: slideInRight 0.3s ease-out;
+  }
+}
+
+/* Desktop-specific overrides */
+@media (min-width: 768px) {
+  .mobile-only {
+    display: none !important;
+  }
+}

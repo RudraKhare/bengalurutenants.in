@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { buildApiUrl, getAuthHeaders } from '@/lib/api';
+import MobileDashboardView from '@/components/MobileDashboardView';
+import ImageWithLoader from '@/components/ImageWithLoader';
 
 // Convert email to kebab-case username
 const getUsername = (email: string) => {
@@ -108,22 +110,44 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center">
-          <div className="text-lg text-gray-600">Loading your dashboard...</div>
+      <>
+        {/* Mobile Loading */}
+        <div className="md:hidden w-full min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <div className="text-lg text-gray-700">Loading dashboard...</div>
+          </div>
         </div>
-      </div>
+        
+        {/* Desktop Loading */}
+        <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <div className="text-lg text-gray-600">Loading your dashboard...</div>
+          </div>
+        </div>
+      </>
     );
   }
 
+  const username = user?.email ? getUsername(user.email) : '';
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <>
+      {/* Mobile Dashboard View */}
+      <MobileDashboardView
+        username={username}
+        userReviews={userReviews}
+        userProperties={userProperties}
+      />
+
+      {/* Desktop Dashboard View */}
+      <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600 mt-1">
-            Welcome back, <span className="font-medium">{user?.email ? getUsername(user.email) : ''}</span>! 
+            Welcome back, <span className="font-medium">{username}</span>! 
             Manage your reviews and properties.
           </p>
         </div>
@@ -306,5 +330,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

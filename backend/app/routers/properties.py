@@ -70,6 +70,9 @@ async def list_properties(
             # Default 5km radius if coordinates given but no radius
             radius_km = 5.0
         
+        # First, filter to only properties that have coordinates
+        query = query.filter(Property.lat != None, Property.lng != None)
+        
         # Haversine formula for spherical distance calculation
         # SQLAlchemy expression using radians and trigonometric functions
         lat1_rad = func.radians(latitude)
@@ -89,6 +92,8 @@ async def list_properties(
         
         # Order by distance (nearest first) when using geographic search
         query = query.order_by(distance_km)
+        
+        print(f"🔍 Geographic search: center=({latitude}, {longitude}), radius={radius_km}km")
     else:
         # Default ordering by newest first when no geographic search
         query = query.order_by(Property.created_at.desc())

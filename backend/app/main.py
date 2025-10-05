@@ -8,7 +8,7 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from .routers import auth, properties, reviews, uploads, geocoding
+from .routers import auth, properties, reviews, uploads, geocoding, cities, admin
 from .db import engine
 from .models import Base
 
@@ -64,7 +64,7 @@ else:
         CORSMiddleware,
         allow_origins=[FRONTEND_URL],
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 
@@ -74,6 +74,8 @@ app.include_router(properties.router)
 app.include_router(reviews.router)
 app.include_router(uploads.router)  # Day 3: Photo upload routes
 app.include_router(geocoding.router)  # Map and geocoding routes
+app.include_router(cities.router)  # City and locality management routes
+app.include_router(admin.router)  # Admin panel routes
 
 @app.get("/", tags=["health"])
 async def root():

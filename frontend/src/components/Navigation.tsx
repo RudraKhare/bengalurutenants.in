@@ -54,7 +54,7 @@ export default function Navigation() {
                 <Link href="/review/add" className="btn-primary">
                   Add Review
                 </Link>
-                <Link href="/auth" className="text-gray-600 hover:text-gray-800">
+                <Link href="/auth" className="btn-primary">
                   Login
                 </Link>
               </>

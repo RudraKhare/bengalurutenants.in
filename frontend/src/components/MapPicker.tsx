@@ -147,8 +147,16 @@ export default function MapPicker({
   const handleGetCurrentLocation = () => {
     setIsLoadingLocation(true);
     
+    // Check if geolocation is supported
     if (!navigator.geolocation) {
-      toast.error('Geolocation not supported');
+      toast.error('Geolocation is not supported by your browser');
+      setIsLoadingLocation(false);
+      return;
+    }
+
+    // Check if running in secure context (HTTPS or localhost)
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      toast.error('Geolocation requires HTTPS connection or localhost', { duration: 5000 });
       setIsLoadingLocation(false);
       return;
     }
@@ -158,11 +166,13 @@ export default function MapPicker({
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         
+        console.log('Current location detected:', { lat, lng });
+        
         if (map && marker) {
           const newPos = { lat, lng };
           map.setCenter(newPos);
           map.setZoom(16);
-          marker.position = newPos;
+          marker.setPosition(newPos);
           
           // Reverse geocode
           try {
@@ -173,9 +183,10 @@ export default function MapPicker({
               const address = result.results[0].formatted_address;
               setSelectedAddress(address);
               onLocationSelect(lat, lng, address);
-              toast.success('Current location detected');
+              toast.success('Current location detected successfully!');
             }
           } catch (error) {
+            console.error('Reverse geocoding error:', error);
             onLocationSelect(lat, lng);
             toast.success('Location set to current position');
           }
@@ -185,12 +196,27 @@ export default function MapPicker({
       },
       (error) => {
         console.error('Geolocation error:', error);
-        toast.error('Unable to get current location');
+        let errorMessage = 'Unable to get current location';
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Location permission denied. Please enable location access in your browser settings.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Location information unavailable. Please check your device settings.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Location request timed out. Please try again.';
+            break;
+        }
+        
+        toast.error(errorMessage, { duration: 5000 });
         setIsLoadingLocation(false);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000
+        timeout: 15000,
+        maximumAge: 0
       }
     );
   };

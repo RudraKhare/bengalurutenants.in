@@ -3,10 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { buildApiUrl, API_ENDPOINTS } from '@/lib/api';
-import { AllBengaluruLocalities, AllCityLocalities } from '@/lib/localities';
 import { getFuzzyLocalitySuggestions } from '@/lib/fuzzyLocality';
-
-const AllIndianCities = Object.keys(AllCityLocalities);
 
 interface SearchInputProps {
   initialArea?: string;
@@ -27,19 +24,65 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [citySearch, setCitySearch] = useState('');
   
+  // Data fetched from API
+  const [allCities, setAllCities] = useState<string[]>([]);
+  const [allLocalities, setAllLocalities] = useState<string[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [isLoadingLocalities, setIsLoadingLocalities] = useState(false);
+  
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const radiusDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Filter localities based on input and selected city
+  // Fetch cities on component mount
   useEffect(() => {
-    const cityLocalities = AllCityLocalities[selectedCity] || [];
-    if (searchArea.trim() === '') {
-      setFilteredLocalities(cityLocalities.slice(0, 20)); // Show more when empty
-    } else {
-      setFilteredLocalities(getFuzzyLocalitySuggestions(cityLocalities, searchArea));
+    async function fetchCities() {
+      setIsLoadingCities(true);
+      try {
+        const response = await fetch(buildApiUrl(API_ENDPOINTS.CITIES.LIST));
+        if (response.ok) {
+          const cities = await response.json();
+          setAllCities(cities.map((city: any) => city.name));
+        }
+      } catch (error) {
+        console.error('Error fetching cities:', error);
+      } finally {
+        setIsLoadingCities(false);
+      }
     }
-  }, [searchArea, selectedCity]);
+    fetchCities();
+  }, []);
+
+  // Fetch localities when selected city changes
+  useEffect(() => {
+    async function fetchLocalities() {
+      if (!selectedCity) return;
+      
+      setIsLoadingLocalities(true);
+      try {
+        const response = await fetch(buildApiUrl(API_ENDPOINTS.CITIES.LOCALITIES(selectedCity)));
+        if (response.ok) {
+          const localities = await response.json();
+          setAllLocalities(localities.map((locality: any) => locality.name));
+        }
+      } catch (error) {
+        console.error('Error fetching localities:', error);
+        setAllLocalities([]);
+      } finally {
+        setIsLoadingLocalities(false);
+      }
+    }
+    fetchLocalities();
+  }, [selectedCity]);
+
+  // Filter localities based on input using fuzzy search
+  useEffect(() => {
+    if (searchArea.trim() === '') {
+      setFilteredLocalities(allLocalities.slice(0, 20)); // Show more when empty
+    } else {
+      setFilteredLocalities(getFuzzyLocalitySuggestions(allLocalities, searchArea));
+    }
+  }, [searchArea, allLocalities]);
   
   // Handle clicks outside dropdown to close it
   useEffect(() => {
@@ -99,54 +142,63 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
     }
   };
 
-  const filteredCities = citySearch.trim() === '' ? AllIndianCities : AllIndianCities.filter(city => city.toLowerCase().includes(citySearch.toLowerCase()));
+  const filteredCities = citySearch.trim() === '' ? allCities : allCities.filter((city: string) => city.toLowerCase().includes(citySearch.toLowerCase()));
 
   return (
-    <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-6 mb-8 w-full max-w-6xl mx-auto overflow-visible relative z-20">
-      <form onSubmit={handleSearch} className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* City Dropdown - Custom Styled with Search */}
-          <div className="flex-shrink-0 relative z-40">
+    <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-3 sm:p-4 md:p-6 mb-6 sm:mb-7 md:mb-8 w-full max-w-6xl mx-auto relative">
+      <form onSubmit={handleSearch} className="flex flex-col gap-3 sm:gap-4 relative">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 relative">
+          {/* City Dropdown - Custom Styled with Search - FIXED FOR MOBILE */}
+          <div className="relative w-full sm:w-auto sm:flex-shrink-0" style={{ zIndex: 100 }}>
             <button
               type="button"
               onClick={() => setShowCityDropdown(!showCityDropdown)}
-              className="bg-white text-left text-gray-900 font-medium px-8 py-4 rounded-lg transition-colors flex items-center justify-between shadow-md border border-gray-200 w-full"
+              className="bg-white text-left text-gray-900 font-medium px-4 sm:px-6 md:px-8 py-3 sm:py-3.5 md:py-4 rounded-lg transition-all hover:shadow-lg flex items-center justify-between shadow-md border-2 border-gray-300 hover:border-red-400 w-full sm:w-auto min-w-[160px] sm:min-w-[180px] text-sm sm:text-base relative"
             >
-              <span className="truncate">{selectedCity}</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <span className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="truncate font-semibold">{selectedCity}</span>
+              </span>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 sm:h-5 sm:w-5 ml-2 text-gray-500 transition-transform ${showCityDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
             {showCityDropdown && (
-              <div className="absolute left-0 top-full w-full z-[99999] bg-white border-2 border-gray-300 rounded-lg shadow-2xl">
-                <div className="p-3 city-dropdown">
+              <div className="absolute left-0 top-full w-full sm:min-w-[280px] bg-white border-2 border-gray-300 rounded-lg shadow-2xl mt-2" style={{ zIndex: 10000 }}>
+                <div className="p-2 sm:p-3 city-dropdown">
                   <input
                     type="text"
                     value={citySearch}
                     onChange={e => setCitySearch(e.target.value)}
                     placeholder="Search city..."
-                    className="w-full px-3 py-2 mb-3 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 mb-2 sm:mb-3 text-xs sm:text-sm border border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:border-red-500"
                   />
-                  <div className="max-h-60 overflow-auto">
-                    {filteredCities.map(city => (
-                      <button
-                        key={city}
-                        type="button"
-                        onClick={() => { setSelectedCity(city); setShowCityDropdown(false); setCitySearch(''); }}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-900 hover:bg-blue-50 rounded cursor-pointer transition-colors mb-1"
-                      >
-                        {city}
-                      </button>
-                    ))}
-                    {filteredCities.length === 0 && (
-                      <div className="text-gray-500 text-sm px-3 py-2">No cities found</div>
+                  <div className="max-h-48 sm:max-h-60 overflow-auto">
+                    {isLoadingCities ? (
+                      <div className="text-gray-500 text-xs sm:text-sm px-2 sm:px-3 py-2">Loading cities...</div>
+                    ) : filteredCities.length === 0 ? (
+                      <div className="text-gray-500 text-xs sm:text-sm px-2 sm:px-3 py-2">No cities found</div>
+                    ) : (
+                      filteredCities.map((city: string) => (
+                        <button
+                          key={city}
+                          type="button"
+                          onClick={() => { setSelectedCity(city); setShowCityDropdown(false); setCitySearch(''); }}
+                          className="w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 hover:bg-red-50 rounded cursor-pointer transition-colors mb-0.5 sm:mb-1 font-medium"
+                        >
+                          {city}
+                        </button>
+                      ))
                     )}
                   </div>
                 </div>
               </div>
             )}
           </div>
-          <div className="flex-1 relative z-30">
+          <div className="flex-1 relative" style={{ zIndex: 90 }}>
             <input
               ref={inputRef}
               id="search-area"
@@ -154,7 +206,7 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
               value={searchArea}
               onChange={(e) => setSearchArea(e.target.value)}
               onFocus={() => setShowDropdown(true)}
-              className="w-full px-6 py-4 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+              className="w-full px-4 sm:px-5 md:px-6 py-3 sm:py-3.5 md:py-4 border-2 border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base relative"
               placeholder="Search property or area"
               autoComplete="off"
             />
@@ -163,28 +215,32 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
             {showDropdown && filteredLocalities.length > 0 && (
               <div 
                 ref={dropdownRef}
-                className="absolute z-[99999] mt-1 w-full bg-white border-2 border-gray-300 rounded-lg shadow-2xl max-h-60 overflow-auto"
-                style={{ top: '100%', left: 0 }}
+                className="absolute mt-1 w-full bg-white border-2 border-gray-300 rounded-lg shadow-2xl max-h-60 overflow-auto"
+                style={{ top: '100%', left: 0, zIndex: 9999 }}
               >
-                {filteredLocalities.map((locality) => (
-                  <button
-                    key={locality}
-                    type="button"
-                    onClick={() => handleSelectLocality(locality)}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0"
-                  >
-                    {locality}
-                  </button>
-                ))}
+                {isLoadingLocalities ? (
+                  <div className="px-4 py-2 text-sm text-gray-500">Loading localities...</div>
+                ) : (
+                  filteredLocalities.map((locality) => (
+                    <button
+                      key={locality}
+                      type="button"
+                      onClick={() => handleSelectLocality(locality)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-800 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-0"
+                    >
+                      {locality}
+                    </button>
+                  ))
+                )}
               </div>
             )}
           </div>
-          <div className="sm:self-center flex gap-3 relative z-30">
+          <div className="sm:self-center flex flex-col sm:flex-row gap-2 sm:gap-3 relative w-full sm:w-auto" style={{ zIndex: 80 }}>
             <button
               type="submit"
-              className="bg-red-500 hover:bg-red-600 text-white font-medium px-8 py-4 rounded-lg transition-colors flex items-center justify-center shadow-md"
+              className="bg-red-500 hover:bg-red-600 text-white font-medium px-6 sm:px-8 py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center shadow-md text-sm sm:text-base"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               Search
@@ -198,9 +254,9 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
                   // Navigate to property search page with no filters
                   window.location.href = '/property/search';
                 }}
-                className="bg-red-500 hover:bg-red-600 text-white font-medium px-8 py-4 rounded-lg transition-colors flex items-center justify-center shadow-md"
+                className="bg-red-500 hover:bg-red-600 text-white font-medium px-6 sm:px-8 py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center shadow-md text-sm sm:text-base"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
                 Explore All
@@ -209,18 +265,18 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
 
             {/* Nearby Button with Radius Options - Only show if onNearbySearch is provided */}
             {onNearbySearch && (
-              <div className="relative z-40">
+              <div className="relative w-full sm:w-auto" style={{ zIndex: 70 }}>
                 <button
                   type="button"
                   onClick={() => setShowRadiusDropdown(!showRadiusDropdown)}
-                  className="bg-red-500 hover:bg-red-600 text-white font-medium px-8 py-4 rounded-lg transition-colors flex items-center justify-center shadow-md"
+                  className="bg-red-500 hover:bg-red-600 text-white font-medium px-6 sm:px-8 py-3 sm:py-4 rounded-lg transition-colors flex items-center justify-center shadow-md text-sm sm:text-base w-full sm:w-auto relative"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                   Nearby
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 sm:h-4 sm:w-4 ml-2 transition-transform ${showRadiusDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
@@ -229,8 +285,8 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
               {showRadiusDropdown && (
                 <div
                   ref={radiusDropdownRef}
-                  className="absolute z-[99999] mt-2 w-72 bg-white border-2 border-gray-300 rounded-lg shadow-2xl"
-                  style={{ top: '100%', right: '0' }}
+                  className="absolute mt-2 w-64 sm:w-72 bg-white border-2 border-gray-300 rounded-lg shadow-2xl right-0 sm:right-auto sm:left-0"
+                  style={{ top: '100%', zIndex: 10000 }}
                 >
                   <div className="p-3">
                     {/* Custom Input Field */}
@@ -287,10 +343,10 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
         </div>
 
         {/* Property Type Filter */}
-        <div className="pt-2">
-          <div className="flex items-center gap-6">
-            <span className="text-sm text-gray-600">Suggested searches:</span>
-            <div className="flex flex-wrap items-center gap-4">
+        <div className="pt-1 sm:pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 md:gap-6">
+            <span className="text-xs sm:text-sm text-gray-600">Suggested searches:</span>
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               {/* Villa/House Option */}
               <label className="inline-flex items-center cursor-pointer">
                 <input 
@@ -299,9 +355,9 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
                   value="villaHouse" 
                   checked={propertyType === 'villaHouse'}
                   onChange={() => setPropertyType('villaHouse')}
-                  className="form-radio text-blue-600 h-4 w-4 cursor-pointer focus:ring-blue-500"
+                  className="form-radio text-blue-600 h-3.5 w-3.5 sm:h-4 sm:w-4 cursor-pointer focus:ring-blue-500"
                 />
-                <span className="ml-2 text-gray-800 text-sm">Villa/House</span>
+                <span className="ml-1.5 sm:ml-2 text-gray-800 text-xs sm:text-sm">Villa/House</span>
               </label>
               
               {/* Flat/Apartments Option */}
@@ -312,9 +368,9 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
                   value="flatApartment" 
                   checked={propertyType === 'flatApartment'}
                   onChange={() => setPropertyType('flatApartment')}
-                  className="form-radio text-blue-600 h-4 w-4 cursor-pointer focus:ring-blue-500" 
+                  className="form-radio text-blue-600 h-3.5 w-3.5 sm:h-4 sm:w-4 cursor-pointer focus:ring-blue-500" 
                 />
-                <span className="ml-2 text-gray-800 text-sm">Flat/Apartment</span>
+                <span className="ml-1.5 sm:ml-2 text-gray-800 text-xs sm:text-sm">Flat/Apartment</span>
               </label>
               
               {/* PG/Hostel Option */}
@@ -325,9 +381,9 @@ export default function SearchInput({ initialArea = '', initialPropertyType = ''
                   value="pgHostel" 
                   checked={propertyType === 'pgHostel'}
                   onChange={() => setPropertyType('pgHostel')}
-                  className="form-radio text-blue-600 h-4 w-4 cursor-pointer focus:ring-blue-500"
+                  className="form-radio text-blue-600 h-3.5 w-3.5 sm:h-4 sm:w-4 cursor-pointer focus:ring-blue-500"
                 />
-                <span className="ml-2 text-gray-800 text-sm">PG/Hostel</span>
+                <span className="ml-1.5 sm:ml-2 text-gray-800 text-xs sm:text-sm">PG/Hostel</span>
               </label>
             </div>
           </div>
