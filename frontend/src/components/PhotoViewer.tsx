@@ -77,7 +77,7 @@ export default function PhotoViewer({
       try {
         // Request presigned view URL from our API
         // This creates a time-limited URL that allows viewing the private photo
-        const response = await fetch(`http://localhost:8000/api/v1/uploads/view/${encodeURIComponent(key)}`, {
+        const response = await fetch(buildApiUrl(API_ENDPOINTS.UPLOADS.VIEW(key)), {
           headers: {
             'Authorization': `Bearer ${token}`
           }

@@ -1,0 +1,51 @@
+services:
+  # FastAPI Backend
+  - type: web
+    name: bengalurutenants-api
+    runtime: python
+    region: singapore
+    plan: free
+    branch: main
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: ENVIRONMENT
+        value: production
+      # Database - You'll add this in Render dashboard
+      - key: DATABASE_URL
+        sync: false
+      # Authentication
+      - key: SECRET_KEY
+        generateValue: true
+        length: 32
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_HOURS
+        value: "168"
+      - key: MAGIC_TOKEN_EXPIRE_SECONDS
+        value: "600"
+      # Frontend URL - Update after Vercel deployment
+      - key: FRONTEND_URL
+        sync: false
+      # Cloudflare R2 Storage
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      # Email (SMTP2GO or Gmail)
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      # Google Maps API
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false

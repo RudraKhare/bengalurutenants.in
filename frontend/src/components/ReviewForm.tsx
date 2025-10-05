@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { buildApiUrl, API_ENDPOINTS } from '@/lib/api';
 import { AllCityLocalities } from '@/lib/localities';
 
 interface ReviewFormProps {
@@ -47,7 +48,7 @@ export default function ReviewForm({
         return;
       }
 
-      const response = await fetch('http://localhost:8000/api/v1/reviews', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.REVIEWS.CREATE), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

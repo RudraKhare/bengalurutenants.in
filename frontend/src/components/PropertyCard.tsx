@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import { buildApiUrl, API_ENDPOINTS } from '@/lib/api';
 import ImageWithLoader from './ImageWithLoader';
 
 interface Property {
@@ -94,7 +95,7 @@ export default function PropertyCard({ property, propertyType }: PropertyCardPro
 
     // Request presigned view URL for the first photo
     // Note: View endpoint is now public, no auth required
-    const apiUrl = `http://localhost:8000/api/v1/uploads/view/${encodeURIComponent(firstKey)}`;
+    const apiUrl = buildApiUrl(API_ENDPOINTS.UPLOADS.VIEW(firstKey));
     console.log(`📡 API Request: ${apiUrl}`);
     
     // Include auth header if available, but don't require it
@@ -128,7 +129,7 @@ export default function PropertyCard({ property, propertyType }: PropertyCardPro
 
   // Fetch latest review for the property
   useEffect(() => {
-    const apiUrl = `http://localhost:8000/api/v1/reviews/?property_id=${property.id}&limit=1`;
+    const apiUrl = buildApiUrl(`/api/v1/reviews/?property_id=${property.id}&limit=1`);
     console.log(`📝 Fetching review for property ${property.id}:`, apiUrl);
     
     // Fetch the latest review comment and rating for this property

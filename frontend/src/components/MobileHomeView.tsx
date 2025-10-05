@@ -562,7 +562,7 @@ function MobileReviewCard({ review, token }: { review: Review; token: string | n
       setImageLoading(true);
       try {
         const response = await fetch(
-          `http://localhost:8000/api/v1/uploads/view/${firstPhotoKey}`,
+          buildApiUrl(API_ENDPOINTS.UPLOADS.VIEW(firstPhotoKey)),
           {
             method: 'GET',
             // Include auth headers only if token exists (for private images)
