@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Script from 'next/script';
+import { buildApiUrl, API_ENDPOINTS } from '@/lib/api';
 
 // Add global Google Maps types
 /// <reference types="@types/google.maps" />
@@ -19,9 +20,6 @@ const BENGALURU_CENTER = {
   lng: 77.5946
 };
 
-// API configuration
-const API_BASE = '/api';
-
 export default function PropertyMapPage() {
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [properties, setProperties] = useState<Property[]>([]);
@@ -33,7 +31,7 @@ export default function PropertyMapPage() {
   // Load properties when component mounts
   const loadProperties = async () => {
     try {
-      const url = `${API_BASE}/v1/properties/?skip=0&limit=10&city=Bengaluru`;
+      const url = buildApiUrl(API_ENDPOINTS.PROPERTIES.LIST + '?skip=0&limit=10&city=Bengaluru');
       console.log('🌐 Fetching properties from:', url);
       const response = await fetch(url, {
         headers: {

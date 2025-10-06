@@ -129,7 +129,7 @@ export default function PropertyCard({ property, propertyType }: PropertyCardPro
 
   // Fetch latest review for the property
   useEffect(() => {
-    const apiUrl = buildApiUrl(`/v1/reviews/?property_id=${property.id}&limit=1`);
+    const apiUrl = buildApiUrl(API_ENDPOINTS.REVIEWS.BY_PROPERTY(property.id.toString()));
     console.log(`📝 Fetching review for property ${property.id}:`, apiUrl);
     
     // Fetch the latest review comment and rating for this property
