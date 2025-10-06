@@ -8,7 +8,10 @@ import MapPicker from '@/components/MapPicker'
 import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { getFuzzyLocalitySuggestions } from '@/lib/fuzzyLocality'
-import { getCityCenter } from '@/lib/cities'
+import { CityCenters } from '@/lib/cities'
+
+// Default coordinates for India (fallback)
+const DEFAULT_COORDINATES = { lat: 20.5937, lng: 78.9629 }
 
 
 export default function AddReviewPage() {
@@ -40,8 +43,8 @@ export default function AddReviewPage() {
   });
 
   // Map-related state
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
+  const [lat, setLat] = useState<number | undefined>(undefined);
+  const [lng, setLng] = useState<number | undefined>(undefined);
   const [locationConfirmed, setLocationConfirmed] = useState(false);
 
   // Locality suggestion state
@@ -125,7 +128,7 @@ export default function AddReviewPage() {
   // Move map to city center when city changes
   useEffect(() => {
     if (formData.city) {
-      const center = getCityCenter(formData.city);
+      const center = CityCenters[formData.city] || DEFAULT_COORDINATES;
       setMapLat(center.lat);
       setMapLng(center.lng);
     }
