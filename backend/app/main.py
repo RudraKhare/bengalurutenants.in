@@ -54,24 +54,20 @@ app = FastAPI(
 )
 
 # CORS configuration for frontend integration
-if ENVIRONMENT == "development":
-    # Development: Allow all origins for easier testing
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    # Production: Restrict to specific frontend domains
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=ALLOWED_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["*"],
-    )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://bengalurutenants-in.vercel.app",
+        "https://bengalurutenants-in-rudra-khares-projects.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
+)
 
 # Mount API routers
 app.include_router(auth.router)
