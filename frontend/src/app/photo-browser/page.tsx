@@ -1,13 +1,18 @@
-'use client';
+import { Metadata } from 'next';
 
-import { useState, useEffect } from 'react';
-import { buildApiUrl, API_ENDPOINTS } from '@/lib/api';
+export const metadata: Metadata = {
+  title: 'Photo Browser | BengaluruTenants.in',
+  description: 'Browse property photos in Bengaluru',
+};
 
 export default function PhotoBrowserPage() {
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Photo Browser</h1>
-      {/* Add your photo browser implementation here */}
-    </div>
+    <main className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6">Property Photos</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Photo grid will be implemented here */}
+        <p className="text-gray-600">Photo browser coming soon...</p>
+      </div>
+    </main>
   );
 }

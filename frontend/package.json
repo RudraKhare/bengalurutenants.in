@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "clean": "node scripts/clean.js",
+    "prebuild": "rimraf .next && rimraf node_modules/.cache",
+    "build": "cross-env NODE_OPTIONS='--max-old-space-size=4096' NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production USE_MOCK_API=true next build",
+    "build:full": "cross-env NODE_OPTIONS='--max-old-space-size=4096' NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
@@ -24,9 +27,13 @@
   "devDependencies": {
     "@types/leaflet": "^1.9.20",
     "autoprefixer": "^10.4.16",
+    "chalk": "^4.1.2",
+    "cross-env": "^10.1.0",
     "eslint": "^8.56.0",
     "eslint-config-next": "14.0.4",
+    "ora": "^9.0.0",
     "postcss": "^8.4.32",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^3.4.0"
   }
 }
