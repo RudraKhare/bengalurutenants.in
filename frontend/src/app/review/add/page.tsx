@@ -8,7 +8,7 @@ import MapPicker from '@/components/MapPicker'
 import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { getFuzzyLocalitySuggestions } from '@/lib/fuzzyLocality'
-import { CityCenters } from '@/lib/cities'
+import { getCityCenter } from '@/lib/cities'
 
 
 export default function AddReviewPage() {
@@ -124,9 +124,10 @@ export default function AddReviewPage() {
 
   // Move map to city center when city changes
   useEffect(() => {
-    if (formData.city && CityCenters[formData.city]) {
-      setMapLat(CityCenters[formData.city].lat);
-      setMapLng(CityCenters[formData.city].lng);
+    if (formData.city) {
+      const center = getCityCenter(formData.city);
+      setMapLat(center.lat);
+      setMapLng(center.lng);
     }
   }, [formData.city]);
 
