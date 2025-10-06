@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import { getFuzzyLocalitySuggestions } from '@/lib/fuzzyLocality'
 import { CityCenters } from '@/lib/cities'
 
+
 export default function AddReviewPage() {
   const { isAuthenticated, token } = useAuth();
   const router = useRouter();
@@ -123,7 +124,7 @@ export default function AddReviewPage() {
 
   // Move map to city center when city changes
   useEffect(() => {
-    if (formData.city && CityCenters && CityCenters[formData.city]) {
+    if (formData.city && CityCenters[formData.city]) {
       setMapLat(CityCenters[formData.city].lat);
       setMapLng(CityCenters[formData.city].lng);
     }

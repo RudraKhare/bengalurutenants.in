@@ -3,21 +3,10 @@
  */
 
 // Initialize Google Maps API with the new functional API
-declare global {
-  interface Window {
-    google?: {
-      maps?: typeof google.maps;
-      initMap?: () => void;
-    };
-  }
-}
-
-// Ensure window.google exists
 if (typeof window !== 'undefined') {
+  // Initialize empty google object if needed
   window.google = window.google || {};
-  window.initMap = () => {
-    console.log('Google Maps API loaded');
-  };
+  window.google.maps = window.google.maps || {};
 }
 
 export const GOOGLE_MAPS_CONFIG = {
@@ -36,29 +25,20 @@ export const GOOGLE_MAPS_CONFIG = {
  * Load Google Maps API dynamically
  */
 export async function loadGoogleMapsAPI(): Promise<void> {
-  if (window.google?.maps?.importLibrary) {
+  // Check if the Google Maps API is already loaded
+  const isLoaded = window.google?.maps?.importLibrary !== undefined;
+  if (isLoaded) {
     return; // Already loaded
   }
 
   return new Promise((resolve, reject) => {
-    try {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.apiKey}&libraries=places,geometry&callback=initMap&v=${GOOGLE_MAPS_CONFIG.version}`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        console.log('Google Maps script loaded');
-        resolve();
-      };
-      script.onerror = (error) => {
-        console.error('Error loading Google Maps:', error);
-        reject(new Error('Failed to load Google Maps API'));
-      };
-      document.head.appendChild(script);
-    } catch (error) {
-      console.error('Error in loadGoogleMapsAPI:', error);
-      reject(error);
-    }
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.apiKey}&libraries=places,geometry,marker&v=${GOOGLE_MAPS_CONFIG.version}`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Google Maps API'));
+    document.head.appendChild(script);
   });
 }
 

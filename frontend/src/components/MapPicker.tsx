@@ -71,10 +71,10 @@ export default function MapPicker({
 
           // Handle marker drag
           markerInstance.addListener('dragend', async () => {
-            const position = markerInstance.position;
+            const position = markerInstance.getPosition();
             if (position) {
-              const lat = typeof position.lat === 'function' ? position.lat() : position.lat;
-              const lng = typeof position.lng === 'function' ? position.lng() : position.lng;
+              const lat = position.lat();
+              const lng = position.lng();
               
               // Reverse geocode to get address
               try {
@@ -105,7 +105,7 @@ export default function MapPicker({
           // Handle map click to move marker
           mapInstance.addListener('click', (e: google.maps.MapMouseEvent) => {
             if (e.latLng) {
-              markerInstance.position = e.latLng;
+              markerInstance.setPosition(e.latLng);
               const lat = e.latLng.lat();
               const lng = e.latLng.lng();
               onLocationSelect(lat, lng);
