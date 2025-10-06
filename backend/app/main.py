@@ -51,14 +51,15 @@ app = FastAPI(
 # CORS configuration for frontend integration
 allowed_origins = [
     # Production URLs
-    "https://bengalurutenants.in",
-    "https://www.bengalurutenants.in",
     "https://bengalurutenants-in.vercel.app",
-    # Allow all Vercel preview domains
-    "https://*.vercel.app",
     # Development URLs
     "http://localhost:3000",
     "http://localhost:8000",
+    # Allow all subdomains
+    "https://*.vercel.app",
+    # Allow specific preview URLs
+    "https://bengalurutenants-in-git-main-rudra-khares-projects.vercel.app",
+    "https://bengalurutenants-in-rudra-khares-projects.vercel.app"
 ]
 
 # Add CORS middleware
