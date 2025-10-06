@@ -101,7 +101,7 @@ MAIL_PORT=587
 GOOGLE_MAPS_API_KEY=AIzaSyDFJf8xF1HeZO68GWFGmIUyPRSeNhCGJ2s
 
 # Python Version
-PYTHON_VERSION=3.11
+PYTHON_VERSION=3.11 
 ```
 
 **⚠️ Important:** After adding variables, click **Save Changes** and the service will redeploy.

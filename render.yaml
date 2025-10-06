@@ -29,9 +29,11 @@ services:
         value: "600"
       # Environment configuration
       - key: ENVIRONMENT
-        value: "development"  # Set to development to allow all origins
+        value: "production"
       - key: FRONTEND_URL
-        value: "*"  # Allow all origins
+        value: "https://bengalurutenants-in.vercel.app"
+      - key: CORS_ALLOW_CREDENTIALS
+        value: "true"
       - key: FRONTEND_URL
         sync: false
       # Cloudflare R2 Storage

@@ -1,0 +1,125 @@
+/**
+ * Backend API Fix - Important Update Required
+ * 
+ * Based on our analysis, there are several missing components in the backend that need to be implemented:
+ * 
+ * PART 1: SCHEMA UPDATES
+ * -------------------------------------------------
+ * The database schema doesn't include a photo_keys column, which is expected by the frontend:
+ * 
+ * 1. Add the column to the database:
+ *    ALTER TABLE properties ADD COLUMN photo_keys TEXT;
+ * 
+ * 2. Update models.py to include the field:
+ *    photo_keys = Column(Text, nullable=True)  # Comma-separated R2 object keys
+ * 
+ * 3. Ensure schemas.py includes the field:
+ *    photo_keys: Optional[str] = None
+ * 
+ * 
+ * PART 2: IMPLEMENT PROPERTY PHOTO MANAGEMENT ENDPOINTS
+ * -------------------------------------------------
+ * The following API endpoints need to be added to properties.py to manage photo_keys:
+ *
+ * 1. Add a new photo to a property:
+ * 
+ * @router.post("/properties/{property_id}/photos")
+ * async def add_property_photo(
+ *     property_id: int,
+ *     upload_data: PhotoUploadData,  # A Pydantic model containing the photo_key
+ *     db: Session = Depends(get_db),
+ *     current_user: User = Depends(get_current_user)
+ * ):
+ *     # Find the property
+ *     property = db.query(Property).filter(Property.id == property_id).first()
+ *     if not property:
+ *         raise HTTPException(status_code=404, detail="Property not found")
+ *     
+ *     # Permission check - only property creator or admin can add photos
+ *     # TODO: Add property_owner_id field to Property model to track ownership
+ *     # if property.property_owner_id != current_user.id and current_user.role != UserRole.ADMIN:
+ *     #     raise HTTPException(status_code=403, detail="Not authorized to update this property")
+ *     
+ *     # Update the photo_keys field
+ *     photo_key = upload_data.photo_key
+ *     if property.photo_keys:
+ *         # If there are existing photos, append with comma
+ *         property.photo_keys = f"{property.photo_keys},{photo_key}"
+ *     else:
+ *         # If this is the first photo
+ *         property.photo_keys = photo_key
+ *     
+ *     # Save to database
+ *     db.commit()
+ *     
+ *     return {"message": "Photo added successfully", "photo_key": photo_key}
+ *
+ *
+ * 2. Remove a photo from a property:
+ * 
+ * @router.delete("/properties/{property_id}/photos/{photo_key}")
+ * async def remove_property_photo(
+ *     property_id: int, 
+ *     photo_key: str, 
+ *     db: Session = Depends(get_db),
+ *     current_user: User = Depends(get_current_user)
+ * ):
+ *     # Find the property
+ *     property = db.query(Property).filter(Property.id == property_id).first()
+ *     if not property:
+ *         raise HTTPException(status_code=404, detail="Property not found")
+ *     
+ *     # Permission check - only property creator or admin can remove photos
+ *     # if property.property_owner_id != current_user.id and current_user.role != UserRole.ADMIN:
+ *     #     raise HTTPException(status_code=403, detail="Not authorized to update this property")
+ *     
+ *     # Check if property has photos
+ *     if not property.photo_keys:
+ *         raise HTTPException(status_code=404, detail="This property has no photos")
+ *     
+ *     # Split keys, remove the specified one, and rejoin
+ *     keys = property.photo_keys.split(',')
+ *     if photo_key not in keys:
+ *         raise HTTPException(status_code=404, detail="Photo not found")
+ *         
+ *     keys.remove(photo_key)
+ *     property.photo_keys = ','.join(keys) if keys else None
+ *     db.commit()
+ *         
+ *     # Also delete from R2 storage
+ *     try:
+ *         r2_client.delete_object(photo_key)
+ *     except Exception as e:
+ *         print(f"Failed to delete object from R2: {str(e)}")
+ *         # Continue anyway since we've updated the database
+ *         
+ *     return {"message": "Photo removed successfully", "photo_key": photo_key}
+ *
+ *
+ * 3. Add a Pydantic model for photo uploads:
+ * 
+ * # Add to schemas.py
+ * class PhotoUploadData(BaseModel):
+ *     photo_key: str = Field(..., description="R2 object key for the uploaded photo")
+ *
+ * 
+ * PART 3: OWNERSHIP TRACKING
+ * -------------------------------------------------
+ * To properly implement permission controls, add a property_owner_id field:
+ * 
+ * 1. Add to database:
+ *    ALTER TABLE properties ADD COLUMN property_owner_id INTEGER REFERENCES users(id);
+ * 
+ * 2. Update models.py:
+ *    property_owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+ * 
+ * 3. Update property creation endpoint to set the owner:
+ *    new_property = Property(..., property_owner_id=current_user.id)
+ *
+ *
+ * IMPLEMENTATION NOTES:
+ * -------------------------------------------------
+ * 1. The current R2 client already handles generating object keys and managing uploads
+ * 2. The frontend is expecting the photo_keys field to be returned in property responses
+ * 3. When implementing these endpoints, remember to add them to the API_ENDPOINTS object in frontend/src/lib/api.ts
+ */

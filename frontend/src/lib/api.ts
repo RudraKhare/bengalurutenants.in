@@ -5,14 +5,13 @@
  * Points to our Day 2 FastAPI backend.
  */
 
-// Get API base URL from environment or default to localhost
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Use relative URLs to leverage Next.js rewrites
+export const API_BASE_URL = '/api';
 
 // Common API request headers
 export const API_HEADERS = {
   'Content-Type': 'application/json',
-  'Accept': 'application/json',
-  'Origin': typeof window !== 'undefined' ? window.location.origin : 'https://bengalurutenants-in.vercel.app',
+  'Origin': process.env.NEXT_PUBLIC_URL || 'http://localhost:3000',
 };
 
 // Helper function to create authenticated headers

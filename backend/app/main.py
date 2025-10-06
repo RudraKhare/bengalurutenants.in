@@ -1,14 +1,20 @@
 """
 FastAPI application entry point with router m# CORS configuration for frontend integration
-# In development, allow all origins
+origins = [
+    "http://localhost:3000",
+    "https://bengalurutenants-in.vercel.app",
+    "https://www.bengalurutenants.in",
+    "https://bengalurutenants.in"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins in development
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
-    allow_origin_regex=None,  # Disable regex for simplicity
+    max_age=86400,  # Cache preflight requests for 24 hours
 )middleware configuration.
 Configures CORS, health endpoints, and API routing for the tenant review platform.
 """
