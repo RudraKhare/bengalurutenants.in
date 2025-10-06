@@ -11,6 +11,8 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost
 // Common API request headers
 export const API_HEADERS = {
   'Content-Type': 'application/json',
+  'Accept': 'application/json',
+  'Origin': typeof window !== 'undefined' ? window.location.origin : 'https://bengalurutenants-in.vercel.app',
 };
 
 // Helper function to create authenticated headers
