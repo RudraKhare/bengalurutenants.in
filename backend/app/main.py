@@ -13,12 +13,7 @@ from .db import engine
 from .models import Base
 
 # Get configuration from environment
-# Allow both Vercel domains and localhost for development
-ALLOWED_ORIGINS = [
-    "https://bengalurutenants-in.vercel.app",
-    "https://bengalurutenants-in-rudra-khares-projects.vercel.app",
-    "http://localhost:3000"
-]
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 @asynccontextmanager
@@ -54,14 +49,22 @@ app = FastAPI(
 )
 
 # CORS configuration for frontend integration
+allowed_origins = [
+    # Production URL
+    "https://bengalurutenants-in.vercel.app",
+    # Preview URLs
+    "https://bengalurutenants-in-git-main-rudra-khares-projects.vercel.app",
+    "https://bengalurutenants-in-rudra-khares-projects.vercel.app",
+    "https://bengalurutenants-n46plzg98-rudra-khares-projects.vercel.app",
+    # Development URLs
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
+
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://bengalurutenants-in.vercel.app",
-        "https://bengalurutenants-in-rudra-khares-projects.vercel.app",
-        "http://localhost:3000",
-        "http://localhost:8000",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -78,16 +81,6 @@ app.include_router(geocoding.router)  # Map and geocoding routes
 app.include_router(cities.router)  # City and locality management routes
 app.include_router(admin.router)  # Admin panel routes
 
-@app.get("/")
-async def root():
-    """Root endpoint that returns API status"""
-    return {
-        "status": "ok",
-        "service": "bengaluru-tenants-api",
-        "version": "2.0.0"
-    }
-
-@app.get("/api/health")
 @app.get("/", tags=["health"])
 async def root():
     """
