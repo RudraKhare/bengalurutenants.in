@@ -78,6 +78,16 @@ app.include_router(geocoding.router)  # Map and geocoding routes
 app.include_router(cities.router)  # City and locality management routes
 app.include_router(admin.router)  # Admin panel routes
 
+@app.get("/")
+async def root():
+    """Root endpoint that returns API status"""
+    return {
+        "status": "ok",
+        "service": "bengaluru-tenants-api",
+        "version": "2.0.0"
+    }
+
+@app.get("/api/health")
 @app.get("/", tags=["health"])
 async def root():
     """
