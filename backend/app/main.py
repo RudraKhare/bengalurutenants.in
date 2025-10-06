@@ -49,52 +49,18 @@ app = FastAPI(
 )
 
 # CORS configuration for frontend integration
-if ENVIRONMENT == "development":
-    # Development: Allow all origins for easier testing
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    # Production: Simplified CORS configuration
-    origins = [
-        "https://bengalurutenants-in.vercel.app",
-        "https://bengalurutenants-mw97q9wl6-rudra-khares-projects.vercel.app",
-        "http://localhost:3000"
-    ]
-    
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["*"],
-        max_age=3600,
-        allow_origin_regex=None,
-    )
-    
-    # Add CORS headers to all responses
-    @app.middleware("http")
-    async def add_cors_headers(request, call_next):
-        response = await call_next(request)
-        origin = request.headers.get("origin")
-        if origin in origins:
-            response.headers["Access-Control-Allow-Origin"] = origin
-        return response
+# Get allowed origins from environment or use default
+allowed_origins = os.getenv("ALLOWED_ORIGINS", FRONTEND_URL).split(",")
 
-# Add error logging middleware
-@app.middleware("http")
-async def log_requests(request, call_next):
-    print(f"\n🔍 Request: {request.method} {request.url}")
-    print(f"Headers: {dict(request.headers)}")
-    response = await call_next(request)
-    print(f"Response Status: {response.status_code}")
-    print(f"Response Headers: {dict(response.headers)}\n")
-    return response
+# Configure CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"]
+)
 
 # Mount API routers
 app.include_router(auth.router)
