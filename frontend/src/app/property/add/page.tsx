@@ -277,8 +277,8 @@ export default function AddPropertyPage() {
           </div>
 
           <MapPicker
-            initialLat={lat || undefined}
-            initialLng={lng || undefined}
+            lat={lat || undefined}
+            lng={lng || undefined}
             onLocationSelect={handleLocationSelect}
             height="500px"
           />
