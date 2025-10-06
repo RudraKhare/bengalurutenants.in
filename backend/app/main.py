@@ -1,21 +1,5 @@
 """
-FastAPI application entry point with router m# CORS configuration for frontend integration
-origins = [
-    "http://localhost:3000",
-    "https://bengalurutenants-in.vercel.app",
-    "https://www.bengalurutenants.in",
-    "https://bengalurutenants.in"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=86400,  # Cache preflight requests for 24 hours
-)middleware configuration.
+FastAPI application entry point with router mounting and middleware configuration.
 Configures CORS, health endpoints, and API routing for the tenant review platform.
 """
 
@@ -29,7 +13,12 @@ from .db import engine
 from .models import Base
 
 # Get configuration from environment
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+# Allow both Vercel domains and localhost for development
+ALLOWED_ORIGINS = [
+    "https://bengalurutenants-in.vercel.app",
+    "https://bengalurutenants-in-rudra-khares-projects.vercel.app",
+    "http://localhost:3000"
+]
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 @asynccontextmanager
@@ -65,18 +54,24 @@ app = FastAPI(
 )
 
 # CORS configuration for frontend integration
-# Get allowed origins from environment or use default
-allowed_origins = os.getenv("ALLOWED_ORIGINS", FRONTEND_URL).split(",")
-
-# Configure CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["*"]
-)
+if ENVIRONMENT == "development":
+    # Development: Allow all origins for easier testing
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    # Production: Restrict to specific frontend domains
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
 # Mount API routers
 app.include_router(auth.router)
