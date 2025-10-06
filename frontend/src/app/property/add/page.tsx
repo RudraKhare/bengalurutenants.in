@@ -26,8 +26,8 @@ export default function AddPropertyPage() {
   const [city, setCity] = useState('Bengaluru');
   const [area, setArea] = useState('');
   const [propertyType, setPropertyType] = useState<'VILLA_HOUSE' | 'FLAT_APARTMENT' | 'PG_HOSTEL'>('FLAT_APARTMENT');
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
+  const [lat, setLat] = useState<number | undefined>(undefined);
+  const [lng, setLng] = useState<number | undefined>(undefined);
   const [locationConfirmed, setLocationConfirmed] = useState(false);
   const [geocodedAddress, setGeocodedAddress] = useState('');
 
@@ -41,7 +41,7 @@ export default function AddPropertyPage() {
     setLoading(true);
     
     try {
-      const response = await fetch(buildApiUrl('/v1/geocoding/geocode'), {
+      const response = await fetch(buildApiUrl('/api/v1/geocoding/geocode'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -83,7 +83,7 @@ export default function AddPropertyPage() {
 
   // Submit property
   const handleSubmit = async () => {
-    if (!address || !city || !lat || !lng) {
+    if (!address || !city || lat === undefined || lng === undefined) {
       toast.error('Please complete all required fields and confirm location');
       return;
     }
@@ -277,8 +277,8 @@ export default function AddPropertyPage() {
           </div>
 
           <MapPicker
-            lat={lat || undefined}
-            lng={lng || undefined}
+            lat={lat}
+            lng={lng}
             onLocationSelect={handleLocationSelect}
             height="500px"
           />

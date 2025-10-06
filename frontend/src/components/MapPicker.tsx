@@ -47,7 +47,7 @@ export default function MapPicker({
             lng: lng || GOOGLE_MAPS_CONFIG.defaultCenter.lng
           };
 
-          const mapInstance = new Map(mapRef.current!, {
+          const mapInstance = new Map(mapRef.current as HTMLElement, {
             center,
             zoom: 15,
             mapTypeControl: true,

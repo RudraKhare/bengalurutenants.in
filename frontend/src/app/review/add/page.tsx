@@ -8,10 +8,11 @@ import MapPicker from '@/components/MapPicker'
 import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { getFuzzyLocalitySuggestions } from '@/lib/fuzzyLocality'
-import { CityCenters } from '@/lib/cities'
+import { getCityCenter } from '@/lib/cities'
+import type { CityCoordinates } from '@/lib/cities'
 
-// Default coordinates for India (fallback)
-const DEFAULT_COORDINATES = { lat: 20.5937, lng: 78.9629 }
+// Default coordinates for Bengaluru (hardcoded to avoid server-side rendering issues)
+const DEFAULT_COORDINATES: CityCoordinates = { lat: 12.9716, lng: 77.5946 };
 
 
 export default function AddReviewPage() {
@@ -127,12 +128,18 @@ export default function AddReviewPage() {
 
   // Move map to city center when city changes
   useEffect(() => {
-    if (formData.city) {
-      const center = CityCenters[formData.city] || DEFAULT_COORDINATES;
-      setMapLat(center.lat);
-      setMapLng(center.lng);
+    if (formData?.city) {
+      try {
+        const center = getCityCenter(formData.city);
+        if (center) {
+          setMapLat(center.lat);
+          setMapLng(center.lng);
+        }
+      } catch (error) {
+        console.error('Error getting city center:', error);
+      }
     }
-  }, [formData.city]);
+  }, [formData?.city]);
 
   // Geocode area/locality when it changes
   useEffect(() => {
