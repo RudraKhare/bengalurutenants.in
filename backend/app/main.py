@@ -16,14 +16,6 @@ from .models import Base
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-# Define allowed origins for CORS
-allowed_origins = [
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "https://bengalurutenants-in.vercel.app",
-    "https://*.vercel.app"  # Allow all Vercel preview URLs
-]
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -58,12 +50,12 @@ app = FastAPI(
 
 # CORS configuration for frontend integration
 allowed_origins = [
-    # Production URL
+    # Production URLs
+    "https://bengalurutenants.in",
+    "https://www.bengalurutenants.in",
     "https://bengalurutenants-in.vercel.app",
-    # Preview URLs
-    "https://bengalurutenants-in-git-main-rudra-khares-projects.vercel.app",
-    "https://bengalurutenants-in-rudra-khares-projects.vercel.app",
-    "https://bengalurutenants-n46plzg98-rudra-khares-projects.vercel.app",
+    # Allow all Vercel preview domains
+    "https://*.vercel.app",
     # Development URLs
     "http://localhost:3000",
     "http://localhost:8000",
