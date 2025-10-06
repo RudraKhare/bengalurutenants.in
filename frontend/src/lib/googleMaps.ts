@@ -3,10 +3,21 @@
  */
 
 // Initialize Google Maps API with the new functional API
+declare global {
+  interface Window {
+    google?: {
+      maps?: typeof google.maps;
+      initMap?: () => void;
+    };
+  }
+}
+
+// Ensure window.google exists
 if (typeof window !== 'undefined') {
-  // Set API key
-  (window as any).google = (window as any).google || {};
-  (window as any).google.maps = (window as any).google.maps || {};
+  window.google = window.google || {};
+  window.initMap = () => {
+    console.log('Google Maps API loaded');
+  };
 }
 
 export const GOOGLE_MAPS_CONFIG = {
@@ -25,18 +36,29 @@ export const GOOGLE_MAPS_CONFIG = {
  * Load Google Maps API dynamically
  */
 export async function loadGoogleMapsAPI(): Promise<void> {
-  if ((window as any).google?.maps?.importLibrary) {
+  if (window.google?.maps?.importLibrary) {
     return; // Already loaded
   }
 
   return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.apiKey}&libraries=places,geometry,marker&v=${GOOGLE_MAPS_CONFIG.version}`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Google Maps API'));
-    document.head.appendChild(script);
+    try {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.apiKey}&libraries=places,geometry&callback=initMap&v=${GOOGLE_MAPS_CONFIG.version}`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        console.log('Google Maps script loaded');
+        resolve();
+      };
+      script.onerror = (error) => {
+        console.error('Error loading Google Maps:', error);
+        reject(new Error('Failed to load Google Maps API'));
+      };
+      document.head.appendChild(script);
+    } catch (error) {
+      console.error('Error in loadGoogleMapsAPI:', error);
+      reject(error);
+    }
   });
 }
 
