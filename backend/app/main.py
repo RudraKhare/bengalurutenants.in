@@ -59,13 +59,19 @@ if ENVIRONMENT == "development":
         allow_headers=["*"],
     )
 else:
-    # Production: Allow all origins temporarily for debugging
+    # Production: Configure CORS for Vercel deployment
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Temporarily allow all origins
-        allow_credentials=True,
+        allow_origins=[
+            "https://bengalurutenants-in.vercel.app",
+            "https://bengalurutenants-mw97q9wl6-rudra-khares-projects.vercel.app",
+            "http://localhost:3000"
+        ],
+        allow_credentials=False,  # Changed to False since we're not using cookies
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
+        expose_headers=["*"],
+        max_age=3600
     )
 
 # Mount API routers
