@@ -59,14 +59,10 @@ if ENVIRONMENT == "development":
         allow_headers=["*"],
     )
 else:
-    # Production: Allow main domain and preview URLs
+    # Production: Allow all origins temporarily for debugging
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            FRONTEND_URL,
-            "https://bengalurutenants-in.vercel.app",
-            "https://bengalurutenants-mw97q9wl6-rudra-khares-projects.vercel.app"
-        ],
+        allow_origins=["*"],  # Temporarily allow all origins
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
