@@ -1,5 +1,15 @@
 """
-FastAPI application entry point with router mounting and middleware configuration.
+FastAPI application entry point with router m# CORS configuration for frontend integration
+# In development, allow all origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins in development
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],
+    expose_headers=["*"],
+    allow_origin_regex=None,  # Disable regex for simplicity
+)middleware configuration.
 Configures CORS, health endpoints, and API routing for the tenant review platform.
 """
 

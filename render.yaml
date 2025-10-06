@@ -27,12 +27,11 @@ services:
         value: "168"
       - key: MAGIC_TOKEN_EXPIRE_SECONDS
         value: "600"
-      # Frontend URL - Production URL
+      # Environment configuration
+      - key: ENVIRONMENT
+        value: "development"  # Set to development to allow all origins
       - key: FRONTEND_URL
-        value: "https://bengalurutenants-in.vercel.app"
-      # CORS allowed origins
-      - key: ALLOWED_ORIGINS
-        value: "https://bengalurutenants-in.vercel.app,https://www.bengalurutenants.in"
+        value: "*"  # Allow all origins
       - key: FRONTEND_URL
         sync: false
       # Cloudflare R2 Storage
