@@ -66,14 +66,14 @@ export default function DashboardPage() {
       setError(null);
 
       // Fetch user's reviews
-      console.log('Fetching reviews from:', buildApiUrl('/api/v1/reviews/my-reviews'));
-      const reviewsResponse = await fetch(buildApiUrl('/api/v1/reviews/my-reviews'), {
+      console.log('Fetching reviews from:', buildApiUrl('/v1/reviews/my-reviews'));
+      const reviewsResponse = await fetch(buildApiUrl('/v1/reviews/my-reviews'), {
         headers: getAuthHeaders(token),
       });
 
       // Fetch user's properties
-      console.log('Fetching properties from:', buildApiUrl('/api/v1/reviews/my-properties'));
-      const propertiesResponse = await fetch(buildApiUrl('/api/v1/reviews/my-properties'), {
+      console.log('Fetching properties from:', buildApiUrl('/v1/reviews/my-properties'));
+      const propertiesResponse = await fetch(buildApiUrl('/v1/reviews/my-properties'), {
         headers: getAuthHeaders(token),
       });
 

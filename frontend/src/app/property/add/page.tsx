@@ -41,7 +41,7 @@ export default function AddPropertyPage() {
     setLoading(true);
     
     try {
-      const response = await fetch(buildApiUrl('/api/v1/geocoding/geocode'), {
+      const response = await fetch(buildApiUrl('/v1/geocoding/geocode'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

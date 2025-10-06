@@ -5,13 +5,12 @@
  * Points to our Day 2 FastAPI backend.
  */
 
-// Use relative URLs to leverage Next.js rewrites
-export const API_BASE_URL = '/api';
+// Get API base URL from environment or default to localhost
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Common API request headers
 export const API_HEADERS = {
   'Content-Type': 'application/json',
-  'Origin': process.env.NEXT_PUBLIC_URL || 'http://localhost:3000',
 };
 
 // Helper function to create authenticated headers
@@ -30,25 +29,35 @@ export const API_ENDPOINTS = {
   
   // Properties
   PROPERTIES: {
-    LIST: '/api/v1/properties/',
-    GET: '/api/v1/properties/',
+    LIST: '/api/v1/properties',
+    GET: '/api/v1/properties',
     DETAIL: (id: string) => `/api/v1/properties/${id}`,
-    CREATE: '/api/v1/properties/',
-    SEARCH: (params: URLSearchParams) => `/api/v1/properties/?${params.toString()}`,
+    CREATE: '/api/v1/properties',
+    SEARCH: (params: URLSearchParams) => `/api/v1/properties?${params.toString()}`,
     // Photo management
     ADD_PHOTO: (propertyId: string) => `/api/v1/properties/${propertyId}/photos`,
     REMOVE_PHOTO: (propertyId: string, photoKey: string) => `/api/v1/properties/${propertyId}/photos/${encodeURIComponent(photoKey)}`,
     LIST_PHOTOS: (propertyId: string) => `/api/v1/properties/${propertyId}/photos`,
   },
   
+  // Cities and Localities
+  CITIES: {
+    LIST: '/api/v1/cities',
+    GET: (city: string) => `/api/v1/cities/${encodeURIComponent(city)}`,
+    LOCALITIES: (city: string) => `/api/v1/cities/${encodeURIComponent(city)}/localities`,
+    ALL_WITH_LOCALITIES: '/api/v1/cities/all-with-localities',
+    SEARCH_LOCALITIES: (cityName: string, search: string) => 
+      `/api/v1/cities/${encodeURIComponent(cityName)}/localities?search=${encodeURIComponent(search)}`,
+  },
+  
   // Reviews
   REVIEWS: {
-    LIST: '/api/v1/reviews/',
-    GET: '/api/v1/reviews/',
-    CREATE: '/api/v1/reviews/',
-    BY_PROPERTY: (propertyId: string) => `/api/v1/reviews/?property_id=${propertyId}`,
+    LIST: '/api/v1/reviews',
+    GET: '/api/v1/reviews',
+    CREATE: '/api/v1/reviews',
+    BY_PROPERTY: (propertyId: string) => `/api/v1/reviews?property_id=${propertyId}`,
     DETAIL: (id: string) => `/api/v1/reviews/${id}`,
-    SEARCH: (params: URLSearchParams) => `/api/v1/reviews/?${params.toString()}`,
+    SEARCH: (params: URLSearchParams) => `/api/v1/reviews?${params.toString()}`,
   },
   
   // Photo Upload (Day 3)
@@ -57,15 +66,6 @@ export const API_ENDPOINTS = {
     VIEW: (objectKey: string) => `/api/v1/uploads/view/${objectKey}`,
     DELETE: (objectKey: string) => `/api/v1/uploads/delete/${objectKey}`,
     USER_PHOTOS: '/api/v1/uploads/user-photos',
-  },
-  
-  // Cities and Localities
-  CITIES: {
-    LIST: '/api/cities',
-    LOCALITIES: (cityName: string) => `/api/cities/${encodeURIComponent(cityName)}/localities`,
-    ALL_WITH_LOCALITIES: '/api/cities/all-with-localities',
-    SEARCH_LOCALITIES: (cityName: string, search: string) => 
-      `/api/cities/${encodeURIComponent(cityName)}/localities?search=${encodeURIComponent(search)}`,
   },
 };
 

@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from ..db import get_db
 from ..models import City, Locality
 
-router = APIRouter(prefix="/api/cities", tags=["Cities"])
+router = APIRouter(prefix="/api/v1/cities", tags=["Cities"])
 
 # Pydantic schemas for request/response
 class LocalityResponse(BaseModel):

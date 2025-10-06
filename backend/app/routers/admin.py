@@ -18,7 +18,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 import secrets
 
-router = APIRouter(prefix="/api/admin", tags=["Admin"])
+router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
 
 # In-memory store for magic links (use Redis in production)
 magic_links = {}
