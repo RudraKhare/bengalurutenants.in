@@ -1,7 +1,30 @@
 services:
   # FastAPI Backend
   - type: web
-    name: bengalurutenants-api
+    n# Email Configuration (SMTP2GO)
+      - key: MAIL_USERNAME
+        value: "bengalurutenants"
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        value: "noreply@bengalurutenants.social"
+      - key: MAIL_PORT
+        value: "2525"
+      - key: MAIL_SERVER
+        value: "mail.smtp2go.com"
+      - key: MAIL_STARTTLS
+        value: "false"
+      - key: MAIL_SSL_TLS
+        value: "true"IL_SERVER
+        value: "smtp.smtp2go.com"
+      - key: MAIL_STARTTLS
+        value: "false"
+      - key: MAIL_SSL_TLS
+        value: "true"
+      - key: MAIL_USE_CREDENTIALS
+        value: "true"
+      - key: MAIL_VALIDATE_CERTS
+        value: "true"galurutenants-api
     runtime: python
     region: singapore
     plan: free
@@ -53,9 +76,9 @@ services:
       - key: MAIL_SERVER
         value: "smtp.smtp2go.com"
       - key: MAIL_STARTTLS
-        value: "true"
-      - key: MAIL_SSL_TLS
         value: "false"
+      - key: MAIL_SSL_TLS
+        value: "true"
       - key: MAIL_USE_CREDENTIALS
         value: "true"
       # Google Maps API
