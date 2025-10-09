@@ -79,10 +79,10 @@ export async function loadGoogleMapsAPI(): Promise<void> {
     };
     
     document.head.appendChild(script);
-  }).catch(error => {
-    googleMapsPromise = null;
-    throw error;
-  });
+    } catch (error) {
+      googleMapsPromise = null;
+      reject(error);
+    }
 
   return googleMapsPromise;
 }
