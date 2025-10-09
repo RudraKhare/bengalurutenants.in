@@ -74,11 +74,13 @@ services:
       - key: MAIL_PORT
         value: "2525"
       - key: MAIL_SERVER
-        value: "smtp.smtp2go.com"
+        value: "mail.smtp2go.com"
       - key: MAIL_STARTTLS
         value: "false"
       - key: MAIL_SSL_TLS
         value: "true"
+      - key: MAIL_SUBTYPE
+        value: "html"
       - key: MAIL_USE_CREDENTIALS
         value: "true"
       # Google Maps API
