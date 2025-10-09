@@ -17,6 +17,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime, timedelta
 import secrets
+import os
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
 
@@ -70,9 +71,9 @@ async def request_magic_link(
         "expires": datetime.utcnow() + timedelta(minutes=15)
     }
     
-    # In production, send email here using SendGrid/AWS SES
-    # For now, return token in response (DEVELOPMENT ONLY)
-    magic_link = f"http://localhost:3000/admin/login?token={token}"
+    # Get frontend URL from environment variable or use production URL
+    frontend_url = os.getenv('FRONTEND_URL', 'https://bengalurutenants.in')
+    magic_link = f"{frontend_url}/admin/login?token={token}"
     
     print(f"\n{'='*60}")
     print(f"🔐 ADMIN MAGIC LINK GENERATED")
