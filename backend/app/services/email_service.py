@@ -46,7 +46,7 @@ class EmailService:
             except Exception as e:
                 logger.warning(f"Failed to initialize email service: {e}")
         
-        self.frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        self.frontend_url = os.getenv("FRONTEND_URL", "https://openreviews.in")
 
     async def send_magic_link(self, email: EmailStr, magic_token: str) -> bool:
         """
