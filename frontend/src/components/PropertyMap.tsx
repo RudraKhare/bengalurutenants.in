@@ -61,12 +61,17 @@ export default function PropertyMap({
         setError(null);
         
         // Wait for Google Maps API to be available
+        let retries = 0;
+        const maxRetries = 10;
+        
+        while (!(window as any).google?.maps && retries < maxRetries) {
+          console.log('Waiting for Google Maps API... (attempt', retries + 1, 'of', maxRetries, ')');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          retries++;
+        }
+
         if (!(window as any).google?.maps) {
-          console.log('Waiting for Google Maps API...');
-          await new Promise(resolve => setTimeout(resolve, 500));
-          if (!(window as any).google?.maps) {
-            throw new Error('Google Maps API not loaded');
-          }
+          throw new Error('Google Maps API failed to load after multiple attempts');
         }
         
         // Load Google Maps library
