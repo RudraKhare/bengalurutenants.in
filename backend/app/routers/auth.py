@@ -44,20 +44,31 @@ async def generate_magic_link(
     """
     
     try:
+        print(f"Debug 1: Starting magic link generation for {request.email}")
+        
+        # Check environment variables
+        print(f"Debug 2: Environment check:")
+        print(f"FRONTEND_URL: {os.getenv('FRONTEND_URL')}")
+        print(f"ENVIRONMENT: {os.getenv('ENVIRONMENT')}")
+        print(f"MAIL_SERVER: {os.getenv('MAIL_SERVER')}")
+        print(f"MAIL_PORT: {os.getenv('MAIL_PORT')}")
+        print(f"MAIL_USERNAME: {os.getenv('MAIL_USERNAME')}")
+        print(f"MAIL_FROM: {os.getenv('MAIL_FROM')}")
+        
         # Create magic token with 10-minute expiry
+        print("Debug 3: Creating magic token...")
         magic_token = create_magic_token(request.email)
+        print(f"Debug 4: Magic token created successfully")
         
-        print(f"Debug: Magic token created for {request.email}")
-        
-        # Development: Write to outbox.log instead of sending email
         # Send magic link via email service
+        print("Debug 5: Attempting to send email...")
         email_sent = await send_magic_link_email(request.email, magic_token)
         
         if email_sent:
-            print(f"Debug: Email sent successfully to {request.email}")
+            print(f"Debug 6: Email sent successfully to {request.email}")
             return MagicTokenResponse(message="Magic link sent to your email!")
         else:
-            print(f"Debug: Email sending failed for {request.email}")
+            print(f"Debug 7: Email sending failed for {request.email}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to send magic link - Email service error"
