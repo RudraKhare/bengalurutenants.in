@@ -49,7 +49,7 @@ services:
       - key: MAIL_FROM
         value: "noreply@bengalurutenants.social"
       - key: MAIL_PORT
-        value: "587"
+        value: "2525"
       - key: MAIL_SERVER
         value: "smtp.smtp2go.com"
       - key: MAIL_STARTTLS
