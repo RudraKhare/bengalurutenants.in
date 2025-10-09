@@ -650,3 +650,4 @@ function MobileReviewCard({ review, token }: { review: Review; token: string | n
     </Link>
   );
 }
+

@@ -16,7 +16,7 @@ export default function LoginPage() {
     setMessage('');
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/magic-link', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.MAGIC_LINK), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
