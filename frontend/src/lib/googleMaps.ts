@@ -37,39 +37,51 @@ export async function loadGoogleMapsAPI(): Promise<void> {
   }
 
   // Return immediately if already loaded
-  if (isClient && window.google && window.google.maps) {
+  if (isClient && window.google?.maps) {
     return Promise.resolve();
   }
 
-  googleMapsPromise = new Promise((resolve, reject) => {
+  googleMapsPromise = new Promise<void>((resolve, reject) => {
     if (!isClient) {
       reject(new Error('Google Maps can only be loaded in browser environment'));
       return;
     }
 
-    // Clean up any existing scripts
+    try {
+      // Clean up any existing scripts
     const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
     if (existingScript) {
       existingScript.remove();
     }
 
-    // Setup the callback
-    window.initMap = () => {
-      resolve();
-    };
-
     // Create and append the script
     const script = document.createElement('script');
     const libraries = GOOGLE_MAPS_CONFIG.libraries.join(',');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.apiKey}&libraries=${libraries}&v=${GOOGLE_MAPS_CONFIG.version}&callback=initMap`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.apiKey}&libraries=${libraries}&v=${GOOGLE_MAPS_CONFIG.version}`;
     script.async = true;
     script.defer = true;
+    
+    script.onload = () => {
+      // Wait for the Google Maps API to be fully initialized
+      const checkGoogleMaps = () => {
+        if (window.google?.maps) {
+          resolve(void 0);
+        } else {
+          setTimeout(checkGoogleMaps, 100);
+        }
+      };
+      checkGoogleMaps();
+    };
+
     script.onerror = () => {
       googleMapsPromise = null; // Reset promise on error
       reject(new Error('Failed to load Google Maps API'));
     };
     
     document.head.appendChild(script);
+  }).catch(error => {
+    googleMapsPromise = null;
+    throw error;
   });
 
   return googleMapsPromise;
