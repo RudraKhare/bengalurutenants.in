@@ -26,7 +26,7 @@ services:
       - key: ACCESS_TOKEN_EXPIRE_HOURS
         value: "168"
       - key: CORS_ORIGINS
-        value: "https://openreviews.in,https://www.openreviews.in,https://bengalurutenants-in.onrender.com,https://bengalurutenants-api.onrender.com"
+        value: "https://openreviews.in,https://www.openreviews.in,http://localhost:3000"
       - key: MAGIC_TOKEN_EXPIRE_SECONDS
         value: "600"
       # Frontend URL - Update after Vercel deployment
