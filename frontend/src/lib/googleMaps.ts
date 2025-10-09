@@ -83,6 +83,7 @@ export async function loadGoogleMapsAPI(): Promise<void> {
       googleMapsPromise = null;
       reject(error);
     }
+  });
 
   return googleMapsPromise;
 }
