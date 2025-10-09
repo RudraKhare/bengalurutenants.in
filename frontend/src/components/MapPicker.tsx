@@ -1,17 +1,7 @@
 'use client';
 
-/**
- * MapPicker Component - Interactive map for selecting property location
- * 
- * Features:
- * - Draggable marker for precise location selection
- * - Current location detection
- * - Address geocoding
- * - Reverse geocoding on marker drag
- */
-
-import { useEffect, useRef, useState } from 'react';
-import { GOOGLE_MAPS_CONFIG } from '@/lib/googleMaps';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { GOOGLE_MAPS_CONFIG, loadGoogleMapsAPI } from '@/lib/googleMaps';
 import toast from 'react-hot-toast';
 
 interface MapPickerProps {
@@ -35,191 +25,182 @@ export default function MapPicker({
 
   // Initialize map
   useEffect(() => {
-    if (mapRef.current) {
-      const initMap = async () => {
-        try {
-          // Load Google Maps API
-          const { Map } = await google.maps.importLibrary("maps") as google.maps.MapsLibrary;
-          const { Marker } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
+    if (!mapRef.current) return;
 
-          const center = {
-            lat: lat || GOOGLE_MAPS_CONFIG.defaultCenter.lat,
-            lng: lng || GOOGLE_MAPS_CONFIG.defaultCenter.lng
-          };
+    let isMounted = true;
+    let mapInstance: google.maps.Map | null = null;
+    let markerInstance: google.maps.Marker | null = null;
 
-          const mapInstance = new Map(mapRef.current as HTMLElement, {
-            center,
-            zoom: 15,
-            mapTypeControl: true,
-            streetViewControl: false,
-            fullscreenControl: true,
-            zoomControl: true,
-            mapId: 'map-picker'
-          });
-
-          setMap(mapInstance);
-
-          // Create draggable marker
-          const markerInstance = new Marker({
-            position: center,
-            map: mapInstance,
-            draggable: true,
-            title: 'Drag to adjust location'
-          });
-
-          setMarker(markerInstance);
-
-          // Handle marker drag
-          markerInstance.addListener('dragend', async () => {
-            const position = markerInstance.getPosition();
-            if (position) {
-              const lat = position.lat();
-              const lng = position.lng();
-              
-              // Reverse geocode to get address
-              try {
-                const geocoder = new google.maps.Geocoder();
-                const result = await geocoder.geocode({ location: { lat, lng } });
-              
-                if (result.results[0]) {
-                  const address = result.results[0].formatted_address;
-                  setSelectedAddress(address);
-                  onLocationSelect(lat, lng, address);
-                
-                  // Show info window with address
-                  const infoWindow = new google.maps.InfoWindow({
-                    content: `<div style="padding: 8px;">
-                      <strong>Selected Location</strong><br/>
-                      ${address}
-                    </div>`
-                  });
-                  infoWindow.open(mapInstance, markerInstance);
-                }
-              } catch (error) {
-                console.error('Reverse geocoding failed:', error);
-                onLocationSelect(lat, lng);
-              }
-            }
-          });
-
-          // Handle map click to move marker
-          mapInstance.addListener('click', (e: google.maps.MapMouseEvent) => {
-            if (e.latLng) {
-              markerInstance.setPosition(e.latLng);
-              const lat = e.latLng.lat();
-              const lng = e.latLng.lng();
-              onLocationSelect(lat, lng);
-            }
-          });
-
-          // Initial reverse geocode if coordinates provided
-          if (lat && lng) {
-            const geocoder = new google.maps.Geocoder();
-            geocoder.geocode(
-              { location: { lat, lng } },
-              (results, status) => {
-                if (status === 'OK' && results?.[0]) {
-                  setSelectedAddress(results[0].formatted_address);
-                }
-              }
-            );
-          }
-        } catch (error) {
-          console.error('Error loading Google Maps:', error);
-          toast.error('Failed to load map');
-        }
-      };
-
-      initMap();
-    }
-  }, []);
-
-  // Update map center and marker when lat/lng change
-  useEffect(() => {
-    if (map && marker && typeof lat === 'number' && typeof lng === 'number') {
-      const newCenter = { lat, lng };
-      map.setCenter(newCenter);
-      marker.setPosition(newCenter);
-    }
-  }, [lat, lng, map, marker]);
-
-  // Get current location
-  const handleGetCurrentLocation = () => {
-    setIsLoadingLocation(true);
-    
-    // Check if geolocation is supported
-    if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
-      setIsLoadingLocation(false);
-      return;
-    }
-
-    // Check if running in secure context (HTTPS or localhost)
-    if (typeof window !== 'undefined' && window.isSecureContext === false) {
-      toast.error('Geolocation requires HTTPS connection or localhost', { duration: 5000 });
-      setIsLoadingLocation(false);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
+    const initMap = async () => {
+      try {
+        await loadGoogleMapsAPI();
         
-        console.log('Current location detected:', { lat, lng });
-        
-        if (map && marker) {
-          const newPos = { lat, lng };
-          map.setCenter(newPos);
-          map.setZoom(16);
-          marker.setPosition(newPos);
+        if (!isMounted || !mapRef.current) return;
+
+        const center = {
+          lat: lat ?? GOOGLE_MAPS_CONFIG.defaultCenter.lat,
+          lng: lng ?? GOOGLE_MAPS_CONFIG.defaultCenter.lng
+        };
+
+        mapInstance = new window.google.maps.Map(mapRef.current, {
+          center,
+          zoom: 15,
+          mapTypeControl: true,
+          streetViewControl: false,
+          fullscreenControl: true,
+          zoomControl: true,
+          mapId: 'map-picker'
+        });
+
+        markerInstance = new window.google.maps.Marker({
+          position: center,
+          map: mapInstance,
+          draggable: true,
+          title: 'Drag to adjust location'
+        });
+
+        setMap(mapInstance);
+        setMarker(markerInstance);
+
+        // Handle marker drag
+        markerInstance.addListener('dragend', async () => {
+          const position = markerInstance?.getPosition();
+          if (!position) return;
+
+          const newLat = position.lat();
+          const newLng = position.lng();
           
-          // Reverse geocode
           try {
-            const geocoder = new google.maps.Geocoder();
-            const result = await geocoder.geocode({ location: newPos });
-            
-            if (result.results[0]) {
-              const address = result.results[0].formatted_address;
+            const geocoder = new window.google.maps.Geocoder();
+            const { results } = await geocoder.geocode({ 
+              location: { lat: newLat, lng: newLng } 
+            });
+          
+            if (results?.[0]) {
+              const address = results[0].formatted_address;
               setSelectedAddress(address);
-              onLocationSelect(lat, lng, address);
-              toast.success('Current location detected successfully!');
+              onLocationSelect(newLat, newLng, address);
+
+              const infoWindow = new window.google.maps.InfoWindow({
+                content: `<div style="padding: 8px;">
+                  <strong>Selected Location</strong><br/>
+                  ${address}
+                </div>`
+              });
+
+              infoWindow.open(mapInstance, markerInstance);
             }
           } catch (error) {
-            console.error('Reverse geocoding error:', error);
-            onLocationSelect(lat, lng);
-            toast.success('Location set to current position');
+            console.error('Reverse geocoding failed:', error);
+            onLocationSelect(newLat, newLng);
           }
+        });
+
+        // Handle map click
+        mapInstance.addListener('click', (e: google.maps.MapMouseEvent) => {
+          const clickedPos = e.latLng;
+          if (clickedPos && markerInstance) {
+            markerInstance.setPosition(clickedPos);
+            onLocationSelect(clickedPos.lat(), clickedPos.lng());
+          }
+        });
+
+        // Initial reverse geocode
+        if (lat && lng) {
+          const geocoder = new window.google.maps.Geocoder();
+          geocoder.geocode(
+            { location: { lat, lng } },
+            (results, status) => {
+              if (status === 'OK' && results?.[0]) {
+                setSelectedAddress(results[0].formatted_address);
+              }
+            }
+          );
         }
-        
-        setIsLoadingLocation(false);
-      },
-      (error) => {
-        console.error('Geolocation error:', error);
-        let errorMessage = 'Unable to get current location';
-        
+
+      } catch (error) {
+        console.error('Error initializing map:', error);
+        toast.error('Failed to load map');
+      }
+    };
+
+    initMap();
+
+    return () => {
+      isMounted = false;
+      if (mapInstance) {
+        mapInstance = null;
+      }
+      if (markerInstance) {
+        markerInstance = null;
+      }
+    };
+  }, [lat, lng, onLocationSelect]);
+
+  // Handle current location
+  const handleGetCurrentLocation = useCallback(async () => {
+    if (!map || !marker) return;
+
+    setIsLoadingLocation(true);
+
+    try {
+      if (!navigator.geolocation) {
+        throw new Error('Geolocation is not supported by your browser');
+      }
+
+      if (typeof window !== 'undefined' && window.isSecureContext === false) {
+        throw new Error('Geolocation requires HTTPS connection');
+      }
+
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        });
+      });
+
+      const { latitude: newLat, longitude: newLng } = position.coords;
+      const newPos = { lat: newLat, lng: newLng };
+
+      map.setCenter(newPos);
+      map.setZoom(16);
+      marker.setPosition(newPos);
+
+      // Reverse geocode
+      const geocoder = new window.google.maps.Geocoder();
+      const { results } = await geocoder.geocode({ location: newPos });
+
+      if (results?.[0]) {
+        const address = results[0].formatted_address;
+        setSelectedAddress(address);
+        onLocationSelect(newLat, newLng, address);
+        toast.success('Current location detected successfully!');
+      }
+
+    } catch (error) {
+      console.error('Geolocation error:', error);
+      let message = 'Unable to get current location';
+      
+      if (error instanceof GeolocationPositionError) {
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = 'Location permission denied. Please enable location access in your browser settings.';
+            message = 'Location permission denied';
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Location information unavailable. Please check your device settings.';
+            message = 'Location information unavailable';
             break;
           case error.TIMEOUT:
-            errorMessage = 'Location request timed out. Please try again.';
+            message = 'Location request timed out';
             break;
         }
-        
-        toast.error(errorMessage, { duration: 5000 });
-        setIsLoadingLocation(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0
       }
-    );
-  };
+      
+      toast.error(message);
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  }, [map, marker, onLocationSelect]);
 
   return (
     <div className="space-y-3">

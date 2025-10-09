@@ -3,11 +3,15 @@
  */
 
 // Initialize Google Maps API with the new functional API
-if (typeof window !== 'undefined') {
-  // Initialize empty google object if needed
-  window.google = window.google || {};
-  window.google.maps = window.google.maps || {};
+declare global {
+  interface Window {
+    google: typeof google;
+    initMap: () => void;
+  }
 }
+
+// Prevent errors during SSR
+const isClient = typeof window !== 'undefined';
 
 export const GOOGLE_MAPS_CONFIG = {
   apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDFJf8xF1HeZO68GWFGmIUyPRSeNhCGJ2s',
@@ -22,24 +26,53 @@ export const GOOGLE_MAPS_CONFIG = {
 };
 
 /**
- * Load Google Maps API dynamically
+ * Load Google Maps API dynamically with proper initialization for importLibrary
  */
+let googleMapsPromise: Promise<void> | null = null;
+
 export async function loadGoogleMapsAPI(): Promise<void> {
-  // Check if the Google Maps API is already loaded
-  const isLoaded = window.google?.maps?.importLibrary !== undefined;
-  if (isLoaded) {
-    return; // Already loaded
+  // Return existing promise if already loading
+  if (googleMapsPromise) {
+    return googleMapsPromise;
   }
 
-  return new Promise((resolve, reject) => {
+  // Return immediately if already loaded
+  if (isClient && window.google && window.google.maps) {
+    return Promise.resolve();
+  }
+
+  googleMapsPromise = new Promise((resolve, reject) => {
+    if (!isClient) {
+      reject(new Error('Google Maps can only be loaded in browser environment'));
+      return;
+    }
+
+    // Clean up any existing scripts
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+    if (existingScript) {
+      existingScript.remove();
+    }
+
+    // Setup the callback
+    window.initMap = () => {
+      resolve();
+    };
+
+    // Create and append the script
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.apiKey}&libraries=places,geometry,marker&v=${GOOGLE_MAPS_CONFIG.version}`;
+    const libraries = GOOGLE_MAPS_CONFIG.libraries.join(',');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.apiKey}&libraries=${libraries}&v=${GOOGLE_MAPS_CONFIG.version}&callback=initMap`;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Google Maps API'));
+    script.onerror = () => {
+      googleMapsPromise = null; // Reset promise on error
+      reject(new Error('Failed to load Google Maps API'));
+    };
+    
     document.head.appendChild(script);
   });
+
+  return googleMapsPromise;
 }
 
 export const MAP_STYLES = {
