@@ -31,7 +31,7 @@ services:
         value: "600"
       # Frontend URL - Update after Vercel deployment
       - key: FRONTEND_URL
-        sync: false
+        value: "https://bengalurutenants-in.vercel.app"
       # Cloudflare R2 Storage
       - key: R2_ACCESS_KEY_ID
         sync: false
