@@ -51,6 +51,8 @@ app = FastAPI(
 # CORS configuration for frontend integration
 allowed_origins = [
     # Production URLs
+    "https://openreviews.in",
+    "https://www.openreviews.in",
     "https://bengalurutenants-in.vercel.app",
     # Development URLs
     "http://localhost:3000",
