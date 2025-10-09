@@ -19,7 +19,7 @@ from ..dependencies import get_current_user
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
 # Get configuration from environment
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://openreviews.in")
 
 @router.post("/magic-link", response_model=MagicTokenResponse)
 async def generate_magic_link(
@@ -47,24 +47,31 @@ async def generate_magic_link(
         # Create magic token with 10-minute expiry
         magic_token = create_magic_token(request.email)
         
+        print(f"Debug: Magic token created for {request.email}")
+        
         # Development: Write to outbox.log instead of sending email
         # Send magic link via email service
         email_sent = await send_magic_link_email(request.email, magic_token)
         
         if email_sent:
+            print(f"Debug: Email sent successfully to {request.email}")
             return MagicTokenResponse(message="Magic link sent to your email!")
         else:
+            print(f"Debug: Email sending failed for {request.email}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to send magic link"
+                detail="Failed to send magic link - Email service error"
             )
         
     except Exception as e:
         # Log error and return generic message for security
-        print(f"Magic link generation error: {e}")
+        print(f"Magic link generation error: {str(e)}")
+        print(f"Error type: {type(e).__name__}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate magic link"
+            detail=f"Failed to generate magic link: {str(e)}"
         )
 
 @router.get("/verify", response_model=TokenResponse)
