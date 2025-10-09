@@ -49,18 +49,39 @@ export async function loadGoogleMapsAPI(): Promise<void> {
       return;
     }
 
-    // Wait for the script to load
-    const checkGoogleMaps = () => {
+    // Create and append the script
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.apiKey}&v=${GOOGLE_MAPS_CONFIG.version}&libraries=${GOOGLE_MAPS_CONFIG.libraries.join(',')}&callback=initMap`;
+    script.async = true;
+    script.defer = true;
+
+    // Setup the callback
+    window.initMap = () => {
       if (window.google?.maps) {
         resolve();
       } else {
-        // Check again in 100ms
-        setTimeout(checkGoogleMaps, 100);
+        reject(new Error('Google Maps failed to initialize'));
       }
     };
 
-    // Start checking
-    checkGoogleMaps();
+    // Handle script load errors
+    script.onerror = () => {
+      reject(new Error('Failed to load Google Maps script'));
+    };
+
+    // Add script to document
+    document.head.appendChild(script);
+
+    // Set a timeout for script loading
+    setTimeout(() => {
+      if (!window.google?.maps) {
+        reject(new Error('Google Maps script load timeout'));
+      }
+    }, 10000); // 10 second timeout
+  }).catch(error => {
+    googleMapsPromise = null; // Reset promise on error
+    throw error;
   });
 
   return googleMapsPromise;
