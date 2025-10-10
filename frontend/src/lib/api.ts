@@ -70,6 +70,14 @@ export const API_ENDPOINTS = {
     DELETE: (objectKey: string) => `/api/v1/uploads/delete/${objectKey}`,
     USER_PHOTOS: '/api/v1/uploads/user-photos',
   },
+  
+  // Admin endpoints
+  ADMIN: {
+    LOGIN: '/api/v1/admin/login',
+    MAGIC_LINK: '/api/v1/admin/magic-link',
+    VERIFY: '/api/v1/admin/magic-link/verify',
+    DASHBOARD: '/api/v1/admin/dashboard',
+  },
 };
 
 // Helper function to build full API URL

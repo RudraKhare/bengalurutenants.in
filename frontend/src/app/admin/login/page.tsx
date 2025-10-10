@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { API_ENDPOINTS, buildApiUrl } from '@/lib/api'
 
 export default function AdminLogin() {
   const router = useRouter()
@@ -32,7 +33,7 @@ export default function AdminLogin() {
     setError('')
     
     try {
-      const response = await fetch('http://localhost:8000/api/admin/magic-link/verify', {
+      const response = await fetch(buildApiUrl(API_ENDPOINTS.ADMIN.VERIFY), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
