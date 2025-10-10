@@ -83,6 +83,7 @@ export default function PropertySearchPage() {
       let queryParams = new URLSearchParams({
         skip: skip.toString(),
         limit: itemsPerPage.toString(),
+        city: city || 'Bengaluru', // Always include city parameter, default to Bengaluru
       });
       
       if (selectedDistance !== null && userLocation) {
@@ -120,11 +121,6 @@ export default function PropertySearchPage() {
           property.area?.toLowerCase().includes(area.toLowerCase()) ||
           property.address.toLowerCase().includes(area.toLowerCase())
         );
-      }
-      
-      // Filter by city client-side as fallback
-      if (city) {
-        filteredProperties = filteredProperties.filter(property => property.city === city);
       }
       
       setProperties(filteredProperties);

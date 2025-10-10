@@ -2,11 +2,9 @@ import { Metadata } from 'next';
 import PropertyDetailPage from './PropertyDetailPage';
 
 // Server-side data fetching for SEO and performance
-import { API_BASE_URL, API_ENDPOINTS, buildApiUrl } from '@/lib/api';
-
 async function getProperty(id: string) {
   try {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.PROPERTIES.DETAIL(id)}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/properties/${id}`, {
       next: { revalidate: 60 }, // Cache for 1 minute
     });
     
@@ -23,7 +21,7 @@ async function getProperty(id: string) {
 
 async function getPropertyReviews(id: string) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/reviews?property_id=${id}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/reviews?property_id=${id}`, {
       cache: 'no-store', // Don't cache reviews - always fetch fresh data to show verified status
     });
     

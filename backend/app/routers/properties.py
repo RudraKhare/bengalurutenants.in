@@ -26,6 +26,7 @@ async def list_properties(
     latitude: Optional[float] = Query(None, description="Center latitude for geographic search"),
     longitude: Optional[float] = Query(None, description="Center longitude for geographic search"),
     radius_km: Optional[float] = Query(None, ge=0.1, le=50, description="Search radius in kilometers"),
+    city: Optional[str] = Query("Bengaluru", description="Filter by city name"),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ) -> PropertyListResponse:
     """
@@ -35,56 +36,32 @@ async def list_properties(
     1. No coordinates: Return all properties (paginated)
     2. With coordinates: Return properties within radius using Haversine formula
     
-    Geographic search uses spherical distance calculation:
-    - Formula: 6371 * 2 * ASIN(SQRT(sin²(Δlat/2) + cos(lat1)*cos(lat2)*sin²(Δlon/2)))
-    - 6371 = Earth's radius in kilometers
-    - Handles edge cases like crossing 180° longitude
-    
-    Pagination:
-    - skip: Number of records to skip (offset)
-    - limit: Maximum records to return (max 100 for performance)
-    
-    Args:
-        db: Database session
-        skip: Pagination offset
-        limit: Maximum results per page
-        latitude: Search center latitude (-90 to 90)
-        longitude: Search center longitude (-180 to 180)
-        radius_km: Search radius in kilometers (0.1 to 50)
-        current_user: Optional authenticated user (for future personalization)
-        
-    Returns:
-        List of properties with total count for pagination
+    Filters:
+    - property_type: Optional property type filter
+    - city: Filter by city name (case-insensitive, defaults to Bengaluru)
     """
-    
-    # Start with base query
     query = db.query(Property)
     
-    # Apply property type filtering
-    if property_type is not None:
+    # Filter by city (case-insensitive)
+    if city:
+        query = query.filter(func.lower(Property.city) == func.lower(city))
+    
+    # Filter by property type
+    if property_type:
         query = query.filter(Property.property_type == property_type)
     
-    # Apply geographic filtering if coordinates provided
-    if latitude is not None and longitude is not None:
-        if radius_km is None:
-            # Default 5km radius if coordinates given but no radius
-            radius_km = 5.0
+    # Apply geographic search if coordinates provided
+    if latitude is not None and longitude is not None and radius_km is not None:
+        # Calculate distance using Haversine formula
+        lat = func.radians(Property.lat)
+        lng = func.radians(Property.lng)
+        search_lat = func.radians(latitude)
+        search_lng = func.radians(longitude)
         
-        # First, filter to only properties that have coordinates
-        query = query.filter(Property.lat != None, Property.lng != None)
+        dlon = search_lng - lng
+        dlat = search_lat - lat
         
-        # Haversine formula for spherical distance calculation
-        # SQLAlchemy expression using radians and trigonometric functions
-        lat1_rad = func.radians(latitude)
-        lat2_rad = func.radians(Property.lat)
-        delta_lat = func.radians(Property.lat - latitude)
-        delta_lon = func.radians(Property.lng - longitude)
-        
-        # Haversine calculation components
-        a = (func.sin(delta_lat / 2) * func.sin(delta_lat / 2) +
-             func.cos(lat1_rad) * func.cos(lat2_rad) *
-             func.sin(delta_lon / 2) * func.sin(delta_lon / 2))
-        
+        a = func.pow(func.sin(dlat/2), 2) + func.cos(lat) * func.cos(search_lat) * func.pow(func.sin(dlon/2), 2)
         distance_km = 6371 * 2 * func.asin(func.sqrt(a))
         
         # Filter by radius

@@ -17,8 +17,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '@/lib/api';
+import { buildApiUrl, API_ENDPOINTS } from '@/lib/api';
 
 interface PhotoViewerProps {
   objectKeys?: string; // Comma-separated object keys from database
@@ -38,18 +37,26 @@ export default function PhotoViewer({
   className = '',
   maxThumbnails = 4 
 }: PhotoViewerProps) {
-  const { token } = useAuth();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Parse object keys and load photos
   useEffect(() => {
-    if (!objectKeys) return;
+    if (!objectKeys) {
+      console.log('No photo keys provided');
+      return;
+    }
 
     // Parse comma-separated object keys
+    console.log('Starting to parse object keys:', objectKeys);
     const keys = objectKeys.split(',').map(key => key.trim()).filter(Boolean);
     
-    if (keys.length === 0) return;
+    console.log('Parsed photo keys:', keys);
+    
+    if (keys.length === 0) {
+      console.log('No valid keys found after parsing');
+      return;
+    }
 
     // Initialize photo state
     const initialPhotos: Photo[] = keys.map(key => ({
@@ -61,62 +68,116 @@ export default function PhotoViewer({
 
     setPhotos(initialPhotos);
 
-    // Don't try to load photos without a token
-    if (!token) {
-      // Set all photos to error state if not authenticated
-      setPhotos(prev => prev.map(photo => ({ 
-        ...photo, 
-        loading: false, 
-        error: true 
-      })));
-      return;
-    }
-
-    // Load presigned URLs for each photo
-    keys.forEach(async (key, index) => {
-      try {
-        // Request presigned view URL from our API
-        // This creates a time-limited URL that allows viewing the private photo
-        const response = await fetch(buildApiUrl(API_ENDPOINTS.UPLOADS.VIEW(key)), {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to get view URL: ${response.status}`);
-        }
-
-        const { view_url } = await response.json();
-
-        // Update photo with the presigned URL
-        setPhotos(prev => prev.map((photo, i) => 
-          i === index 
-            ? { ...photo, viewUrl: view_url, loading: false }
-            : photo
-        ));
-
-      } catch (error) {
-        console.error(`Failed to load photo ${key}:`, error);
+    // Load presigned URLs for each photo with retry logic
+    const loadPhotos = async () => {
+      console.log('Starting loadPhotos function');
+      
+      const fetchWithRetry = async (key: string, index: number, retries = 3, delay = 1000) => {
+        let lastUrl = '';
+        console.log(`Starting fetchWithRetry for key: ${key}, index: ${index}`);
         
-        // Mark photo as error
-        setPhotos(prev => prev.map((photo, i) => 
-          i === index 
-            ? { ...photo, loading: false, error: true }
-            : photo
-        ));
-      }
-    });
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            // Request public view URL from our API
+            lastUrl = buildApiUrl(API_ENDPOINTS.UPLOADS.VIEW(key));
+            console.log(`[${key}] Attempt ${attempt}: Constructed URL:`, lastUrl);
+            
+            console.log(`[${key}] Sending fetch request to:`, lastUrl);
+            const response = await fetch(lastUrl);
+            
+            console.log(`[${key}] Response status:`, response.status);
+            console.log(`[${key}] Response headers:`, Object.fromEntries(response.headers));
 
-  }, [objectKeys, token]);
+            if (!response.ok) {
+              throw new Error(`Failed to get view URL: ${response.status}`);
+            }
+
+            const responseText = await response.text();
+            console.log(`[${key}] Raw response:`, responseText);
+            
+            let data;
+            try {
+                data = JSON.parse(responseText);
+                console.log(`[${key}] Parsed response data:`, data);
+            } catch (parseError) {
+                console.error(`[${key}] Failed to parse JSON response:`, parseError);
+                throw new Error('Invalid JSON response');
+            }
+
+            if (!data.view_url) {
+              throw new Error('No view URL in response');
+            }
+
+            // Update photo with the presigned URL
+            console.log(`[${key}] About to update photo with view_url:`, data.view_url);
+            setPhotos(prev => {
+              const updated = prev.map(photo => 
+                photo.objectKey === key
+                  ? { ...photo, viewUrl: data.view_url, loading: false }
+                  : photo
+              );
+              console.log(`[${key}] Updated photos state:`, updated);
+              return updated;
+            });
+            
+            return; // Success - exit the retry loop
+
+          } catch (error) {
+            console.error(`Attempt ${attempt} failed for photo ${key}:`, error);
+            console.error('Error details:', {
+              url: lastUrl,
+              attempt,
+              error: error instanceof Error ? error.message : String(error)
+            });
+            
+            if (attempt === retries) {
+              // Mark photo as error after all retries failed
+              setPhotos(prev => prev.map(photo => 
+                photo.objectKey === key 
+                  ? { ...photo, loading: false, error: true }
+                  : photo
+              ));
+              throw error; // Propagate the error
+            }
+            
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, delay * attempt));
+          }
+        }
+      };
+
+      try {
+        await Promise.all(keys.map((key, index) => fetchWithRetry(key, index)));
+      } catch (error) {
+        console.error('Error loading photos:', error);
+      }
+    };
+
+    // Start loading the photos
+    loadPhotos();
+
+  }, [objectKeys]);
 
   // Handle image load error (e.g., expired URL)
   const handleImageError = (index: number) => {
-    setPhotos(prev => prev.map((photo, i) => 
-      i === index 
-        ? { ...photo, error: true }
-        : photo
-    ));
+    console.error(`Image loading failed for index ${index}`);
+    setPhotos(prev => {
+      const photo = prev[index];
+      if (!photo) return prev;
+      
+      console.error('Failed photo details:', {
+        objectKey: photo.objectKey,
+        viewUrl: photo.viewUrl,
+        wasLoading: photo.loading,
+        hadError: photo.error
+      });
+      
+      return prev.map((p, i) => 
+        i === index 
+          ? { ...p, error: true, loading: false }
+          : p
+      );
+    });
   };
 
   // Open lightbox
@@ -207,7 +268,10 @@ export default function PhotoViewer({
                   src={photo.viewUrl}
                   alt={`Photo ${index + 1}`}
                   className="w-full h-full object-cover"
-                  onError={() => handleImageError(index)}
+                  onError={(e) => {
+                console.error(`Image load error for index ${index}:`, e);
+                handleImageError(index);
+              }}
                   loading="lazy" // Add lazy loading for better performance
                 />
               )}
