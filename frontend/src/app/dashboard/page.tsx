@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { buildApiUrl, getAuthHeaders } from '@/lib/api';
+import { buildApiUrl, getAuthHeaders, API_BASE_URL, API_ENDPOINTS } from '@/lib/api';
 import MobileDashboardView from '@/components/MobileDashboardView';
 import ImageWithLoader from '@/components/ImageWithLoader';
 
@@ -59,44 +59,79 @@ export default function DashboardPage() {
   }, [isAuthenticated, router, token]);
 
   const fetchUserData = async () => {
-    if (!token) return;
+    if (!token) {
+      console.error('No auth token available');
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch user's reviews
+      // Fetch user's reviews using predefined API endpoints
       const reviewsParams = new URLSearchParams({ my_reviews: 'true' });
-      console.log('Fetching reviews from:', buildApiUrl('/api/v1/reviews', reviewsParams));
-      const reviewsResponse = await fetch(buildApiUrl('/api/v1/reviews', reviewsParams), {
-        headers: getAuthHeaders(token)
+      const reviewsUrl = buildApiUrl(API_ENDPOINTS.REVIEWS.LIST, reviewsParams);
+      console.log('Fetching reviews from:', reviewsUrl);
+      const reviewsResponse = await fetch(reviewsUrl, {
+        headers: getAuthHeaders(token),
+        credentials: 'include'
       });
 
-      // Fetch user's properties
+      // Fetch user's properties using predefined API endpoints
       const propertiesParams = new URLSearchParams({ my_properties: 'true' });
-      console.log('Fetching properties from:', buildApiUrl('/api/v1/properties', propertiesParams));
-      const propertiesResponse = await fetch(buildApiUrl('/api/v1/properties', propertiesParams), {
-        headers: getAuthHeaders(token)
+      const propertiesUrl = buildApiUrl(API_ENDPOINTS.PROPERTIES.LIST, propertiesParams);
+      console.log('Fetching properties from:', propertiesUrl);
+      const propertiesResponse = await fetch(propertiesUrl, {
+        headers: getAuthHeaders(token),
+        credentials: 'include'
       });
 
+      // Process reviews response
       if (reviewsResponse.ok) {
         const reviewsData = await reviewsResponse.json();
         console.log('Reviews data:', reviewsData);
+        if (!reviewsData.reviews) {
+          console.error('Reviews data missing reviews array:', reviewsData);
+          setError('Invalid reviews data format received');
+        }
         setUserReviews(reviewsData.reviews || []);
       } else {
-        console.error('Failed to fetch reviews:', reviewsResponse.status, reviewsResponse.statusText);
+        const status = reviewsResponse.status;
+        const statusText = reviewsResponse.statusText;
+        console.error('Failed to fetch reviews:', status, statusText);
         const errorText = await reviewsResponse.text();
         console.error('Reviews error response:', errorText);
+        setError(`Failed to fetch reviews: ${status} ${statusText}`);
+        
+        if (status === 401 || status === 403) {
+          console.error('Authentication error - clearing token');
+          logout?.();
+          return;
+        }
       }
 
+      // Process properties response
       if (propertiesResponse.ok) {
         const propertiesData = await propertiesResponse.json();
         console.log('Properties data:', propertiesData);
-        setUserProperties(propertiesData.properties || []);  // Access the properties array from the response
+        if (!propertiesData.properties) {
+          console.error('Properties data missing properties array:', propertiesData);
+          setError('Invalid properties data format received');
+        }
+        setUserProperties(propertiesData.properties || []);
       } else {
-        console.error('Failed to fetch properties:', propertiesResponse.status, propertiesResponse.statusText);
+        const status = propertiesResponse.status;
+        const statusText = propertiesResponse.statusText;
+        console.error('Failed to fetch properties:', status, statusText);
         const errorText = await propertiesResponse.text();
         console.error('Properties error response:', errorText);
+        setError(`Failed to fetch properties: ${status} ${statusText}`);
+        
+        if (status === 401 || status === 403) {
+          console.error('Authentication error - clearing token');
+          logout?.();
+          return;
+        }
       }
     } catch (err) {
       setError('Failed to load dashboard data');
