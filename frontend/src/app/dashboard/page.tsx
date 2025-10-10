@@ -66,15 +66,17 @@ export default function DashboardPage() {
       setError(null);
 
       // Fetch user's reviews
-      console.log('Fetching reviews from:', buildApiUrl('/v1/reviews/my-reviews'));
-      const reviewsResponse = await fetch(buildApiUrl('/v1/reviews/my-reviews'), {
-        headers: getAuthHeaders(token),
+      const reviewsParams = new URLSearchParams({ my_reviews: 'true' });
+      console.log('Fetching reviews from:', buildApiUrl('/api/v1/reviews', reviewsParams));
+      const reviewsResponse = await fetch(buildApiUrl('/api/v1/reviews', reviewsParams), {
+        headers: getAuthHeaders(token)
       });
 
       // Fetch user's properties
-      console.log('Fetching properties from:', buildApiUrl('/v1/reviews/my-properties'));
-      const propertiesResponse = await fetch(buildApiUrl('/v1/reviews/my-properties'), {
-        headers: getAuthHeaders(token),
+      const propertiesParams = new URLSearchParams({ my_properties: 'true' });
+      console.log('Fetching properties from:', buildApiUrl('/api/v1/properties', propertiesParams));
+      const propertiesResponse = await fetch(buildApiUrl('/api/v1/properties', propertiesParams), {
+        headers: getAuthHeaders(token)
       });
 
       if (reviewsResponse.ok) {
@@ -90,7 +92,7 @@ export default function DashboardPage() {
       if (propertiesResponse.ok) {
         const propertiesData = await propertiesResponse.json();
         console.log('Properties data:', propertiesData);
-        setUserProperties(propertiesData || []);
+        setUserProperties(propertiesData.properties || []);  // Access the properties array from the response
       } else {
         console.error('Failed to fetch properties:', propertiesResponse.status, propertiesResponse.statusText);
         const errorText = await propertiesResponse.text();

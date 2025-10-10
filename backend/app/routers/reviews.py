@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api/v1/reviews", tags=["reviews"])
 async def list_reviews(
     db: Session = Depends(get_db),
     property_id: Optional[int] = Query(None, description="Filter reviews by property ID"),
+    my_reviews: Optional[bool] = Query(False, description="Fetch only current user's reviews"),
     skip: int = Query(0, ge=0, description="Number of reviews to skip (pagination)"),
     limit: int = Query(20, ge=1, le=100, description="Number of reviews to return"),
     current_user: Optional[User] = Depends(get_current_user_optional)
@@ -46,6 +47,10 @@ async def list_reviews(
     
     # Start with base query, include property relationship to load photo_keys
     query = db.query(Review).options(joinedload(Review.property))
+    
+    # If my_reviews is True, filter to show only the current user's reviews
+    if my_reviews and current_user:
+        query = query.filter(Review.user_id == current_user.id)
     
     # Apply property filter if specified
     if property_id is not None:

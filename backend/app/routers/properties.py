@@ -27,6 +27,7 @@ async def list_properties(
     longitude: Optional[float] = Query(None, description="Center longitude for geographic search"),
     radius_km: Optional[float] = Query(None, ge=0.1, le=50, description="Search radius in kilometers"),
     city: Optional[str] = Query("Bengaluru", description="Filter by city name"),
+    my_properties: Optional[bool] = Query(False, description="Fetch only current user's properties"),
     current_user: Optional[User] = Depends(get_current_user_optional)
 ) -> PropertyListResponse:
     """
@@ -41,6 +42,10 @@ async def list_properties(
     - city: Filter by city name (case-insensitive, defaults to Bengaluru)
     """
     query = db.query(Property)
+    
+    # If my_properties is True, filter to show only the current user's properties
+    if my_properties and current_user:
+        query = query.filter(Property.property_owner_id == current_user.id)
     
     # Filter by city (case-insensitive)
     if city:
