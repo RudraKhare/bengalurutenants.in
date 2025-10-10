@@ -69,8 +69,7 @@ export default function DashboardPage() {
       setError(null);
 
       // Fetch user's reviews using predefined API endpoints
-      const reviewsParams = new URLSearchParams({ my_reviews: 'true' });
-      const reviewsUrl = buildApiUrl(API_ENDPOINTS.REVIEWS.LIST, reviewsParams);
+      const reviewsUrl = buildApiUrl('/api/v1/reviews/my-reviews');
       console.log('Fetching reviews from:', reviewsUrl);
       const reviewsResponse = await fetch(reviewsUrl, {
         headers: getAuthHeaders(token),
@@ -78,8 +77,7 @@ export default function DashboardPage() {
       });
 
       // Fetch user's properties using predefined API endpoints
-      const propertiesParams = new URLSearchParams({ my_properties: 'true' });
-      const propertiesUrl = buildApiUrl(API_ENDPOINTS.PROPERTIES.LIST, propertiesParams);
+      const propertiesUrl = buildApiUrl('/api/v1/properties/my-properties');
       console.log('Fetching properties from:', propertiesUrl);
       const propertiesResponse = await fetch(propertiesUrl, {
         headers: getAuthHeaders(token),
@@ -100,6 +98,8 @@ export default function DashboardPage() {
         const statusText = reviewsResponse.statusText;
         console.error('Failed to fetch reviews:', status, statusText);
         const errorText = await reviewsResponse.text();
+        setError(`Failed to fetch reviews (${status}): ${errorText || statusText}`);
+        setUserReviews([]);
         console.error('Reviews error response:', errorText);
         setError(`Failed to fetch reviews: ${status} ${statusText}`);
         

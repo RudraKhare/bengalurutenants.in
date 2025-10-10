@@ -47,6 +47,10 @@ async def list_properties(
     if my_properties and current_user:
         query = query.filter(Property.property_owner_id == current_user.id)
     
+    # Filter by owner if my_properties flag is set
+    if my_properties and current_user:
+        query = query.filter(Property.property_owner_id == current_user.id)
+
     # Filter by city (case-insensitive)
     if city:
         query = query.filter(func.lower(Property.city) == func.lower(city))

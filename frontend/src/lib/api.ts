@@ -34,6 +34,7 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/api/v1/properties/${id}`,
     CREATE: '/api/v1/properties',
     SEARCH: (params: URLSearchParams) => `/api/v1/properties?${params.toString()}`,
+    MY_PROPERTIES: '/api/v1/properties/my-properties',
     // Photo management
     ADD_PHOTO: (propertyId: string) => `/api/v1/properties/${propertyId}/photos`,
     REMOVE_PHOTO: (propertyId: string, photoKey: string) => `/api/v1/properties/${propertyId}/photos/${encodeURIComponent(photoKey)}`,
@@ -57,6 +58,8 @@ export const API_ENDPOINTS = {
     CREATE: '/api/v1/reviews',
     BY_PROPERTY: (propertyId: string) => `/api/v1/reviews?property_id=${propertyId}`,
     DETAIL: (id: string) => `/api/v1/reviews/${id}`,
+    MY_REVIEWS: '/api/v1/reviews/my-reviews',
+    MY_PROPERTIES: '/api/v1/reviews/my-properties',
     SEARCH: (params: URLSearchParams) => `/api/v1/reviews?${params.toString()}`,
   },
   
