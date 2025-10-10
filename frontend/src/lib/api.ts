@@ -17,6 +17,7 @@ export const API_HEADERS = {
 export const getAuthHeaders = (token: string) => ({
   ...API_HEADERS,
   'Authorization': `Bearer ${token}`,
+  'Cache-Control': 'no-cache',  // Prevent caching of authenticated requests
 });
 
 // API endpoints

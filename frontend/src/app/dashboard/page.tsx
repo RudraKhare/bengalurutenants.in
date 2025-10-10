@@ -49,7 +49,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !token) {
       router.push('/auth');
       return;
     }
@@ -57,6 +57,13 @@ export default function DashboardPage() {
     // Fetch user-specific data
     fetchUserData();
   }, [isAuthenticated, router, token]);
+
+  // Reload data when auth token changes
+  useEffect(() => {
+    if (token) {
+      fetchUserData();
+    }
+  }, [token]);
 
   const fetchUserData = async () => {
     if (!token) {
@@ -70,10 +77,14 @@ export default function DashboardPage() {
 
       // Fetch user's reviews using predefined API endpoints
       const reviewsUrl = buildApiUrl(API_ENDPOINTS.REVIEWS.MY_REVIEWS);
-      console.log('Fetching reviews from:', reviewsUrl);
+      console.log('Fetching reviews from:', reviewsUrl, 'with token:', token);
       const reviewsResponse = await fetch(reviewsUrl, {
-        headers: getAuthHeaders(token),
-        credentials: 'include'
+        method: 'GET',
+        headers: {
+          ...API_HEADERS,
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
+        }
       });
 
       // Fetch user's properties using predefined API endpoints
