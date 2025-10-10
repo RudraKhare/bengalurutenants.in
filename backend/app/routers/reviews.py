@@ -84,69 +84,35 @@ async def list_reviews(
 async def get_my_reviews(
     db: Session = Depends(get_db),
     skip: int = Query(0, ge=0, description="Number of reviews to skip (pagination)"),
-    limit: int = Query(50, ge=1, le=100, description="Number of reviews to return"),
+    limit: int = Query(20, ge=1, le=100, description="Number of reviews to return"),
     current_user: User = Depends(get_current_user)
 ) -> ReviewListResponse:
     """
-    Get all reviews created by the current authenticated user.
+    Get all reviews written by the current authenticated user.
     
-    This endpoint allows users to see their review history in a dashboard.
-    Reviews are returned in descending order by creation date (newest first).
-    
-    Includes:
-    - All review details (rating, comment, property_type, etc.)
-    - Associated property information through relationships
-    - Verification status and vote counts
-    
-    Args:
-        db: Database session
-        skip: Pagination offset (default: 0)
-        limit: Maximum results per page (default: 50, max: 100)
-        current_user: Authenticated user from JWT token
-        
-    Returns:
-        List of user's reviews with associated property data
-        
-    Raises:
-        401: If user is not authenticated
+    Requires authentication - returns only reviews from current user.
+    Results are paginated and sorted by newest first.
     """
-    try:
-        # Import relationship loading
-        from sqlalchemy.orm import joinedload
-        
-        # Query reviews for the current user only with property relationship loaded
-        print(f"Querying reviews for user ID: {current_user.id}")
-        query = db.query(Review).options(joinedload(Review.property)).filter(Review.user_id == current_user.id)
-        
-        # Order by newest first for dashboard view
-        query = query.order_by(Review.created_at.desc())
-        
-        # Get total count for pagination
-        total_count = query.count()
-        print(f"Found {total_count} reviews for user")
-        
-        # Apply pagination
-        reviews = query.offset(skip).limit(limit).all()
-        print(f"Retrieved {len(reviews)} reviews after pagination")
-        
-        # Try to serialize the response
-        response = ReviewListResponse(
-            reviews=reviews,
-            total=total_count,
-            skip=skip,
-            limit=limit
-        )
-        print(f"Successfully created response")
-        return response
-        
-    except Exception as e:
-        print(f"Error fetching user reviews: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch user reviews: {str(e)}"
-        )
+    query = db.query(Review).options(joinedload(Review.property))
+    
+    # Filter by current user
+    query = query.filter(Review.user_id == current_user.id)
+    
+    # Order by newest first
+    query = query.order_by(Review.created_at.desc())
+    
+    # Get total count before pagination
+    total_count = query.count()
+    
+    # Apply pagination
+    reviews = query.offset(skip).limit(limit).all()
+    
+    return ReviewListResponse(
+        reviews=reviews,
+        total=total_count,
+        skip=skip,
+        limit=limit
+    )
 
 @router.get("/my-properties", response_model=List[dict])
 async def get_my_properties(
