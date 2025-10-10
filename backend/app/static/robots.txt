@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/v1/admin/
+Disallow: /v1/admin/
+
+Sitemap: https://openreviews.in/sitemap.xml
