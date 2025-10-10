@@ -54,14 +54,6 @@ async def list_reviews(
     
     # Apply property filter if specified
     if property_id is not None:
-        # Validate property exists
-        property_exists = db.query(Property).filter(Property.id == property_id).first()
-        if property_exists is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Property with ID {property_id} not found"
-            )
-        
         query = query.filter(Review.property_id == property_id)
     
     # Order by newest first
@@ -93,11 +85,33 @@ async def get_my_reviews(
     Requires authentication - returns only reviews from current user.
     Results are paginated and sorted by newest first.
     """
-    query = db.query(Review).options(joinedload(Review.property))
-    
-    # Filter by current user
-    query = query.filter(Review.user_id == current_user.id)
-    
+    try:
+        query = db.query(Review).options(joinedload(Review.property))
+        
+        # Filter by current user
+        query = query.filter(Review.user_id == current_user.id)
+        
+        # Order by newest first
+        query = query.order_by(Review.created_at.desc())
+        
+        # Get total count for pagination
+        total_count = query.count()
+        
+        # Apply pagination
+        reviews = query.offset(skip).limit(limit).all()
+        
+        return ReviewListResponse(
+            reviews=reviews,
+            total=total_count,
+            skip=skip,
+            limit=limit
+        )
+    except Exception as e:
+        print(f"Error fetching my reviews: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch reviews"
+        )
     # Order by newest first
     query = query.order_by(Review.created_at.desc())
     

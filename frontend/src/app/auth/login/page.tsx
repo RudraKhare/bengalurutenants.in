@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { API_ENDPOINTS, buildApiUrl } from '@/lib/api';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,7 +17,7 @@ export default function LoginPage() {
     setMessage('');
 
     try {
-      const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.MAGIC_LINK), {
+      const response = await fetch('http://localhost:8000/api/v1/auth/magic-link', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

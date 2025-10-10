@@ -16,7 +16,7 @@ from ..schemas import (
 from ..services.geocoding_service import GeocodingService
 from ..dependencies import get_current_user_optional
 
-router = APIRouter(prefix="/api/v1/geocoding", tags=["geocoding"])
+router = APIRouter(prefix="/v1/geocoding", tags=["geocoding"])
 
 
 @router.post("/geocode", response_model=GeocodeResponse)

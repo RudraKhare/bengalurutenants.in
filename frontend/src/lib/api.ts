@@ -74,8 +74,19 @@ export const API_ENDPOINTS = {
 
 // Helper function to build full API URL
 export const buildApiUrl = (endpoint: string, params?: URLSearchParams) => {
-  if (params) {
-    return `${API_BASE_URL}${endpoint}?${params.toString()}`;
+  // In production, modify the endpoint to match server configuration
+  const modifiedEndpoint = process.env.NODE_ENV === 'production' 
+    ? endpoint.replace('/api/v1', '/v1')
+    : endpoint;
+
+  const finalUrl = params 
+    ? `${API_BASE_URL}${modifiedEndpoint}?${params.toString()}`
+    : `${API_BASE_URL}${modifiedEndpoint}`;
+
+  // Debug log in production
+  if (process.env.NODE_ENV === 'production') {
+    console.log('API Request URL:', finalUrl);
   }
-  return `${API_BASE_URL}${endpoint}`;
+
+  return finalUrl;
 };

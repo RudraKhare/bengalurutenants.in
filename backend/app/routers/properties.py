@@ -43,12 +43,13 @@ async def list_properties(
     """
     query = db.query(Property)
     
-    # If my_properties is True, filter to show only the current user's properties
-    if my_properties and current_user:
-        query = query.filter(Property.property_owner_id == current_user.id)
-    
     # Filter by owner if my_properties flag is set
-    if my_properties and current_user:
+    if my_properties:
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required to view your properties"
+            )
         query = query.filter(Property.property_owner_id == current_user.id)
 
     # Filter by city (case-insensitive)
@@ -85,6 +86,40 @@ async def list_properties(
         query = query.order_by(Property.created_at.desc())
     
     # Get total count for pagination (before applying skip/limit)
+    total_count = query.count()
+    
+    # Apply pagination
+    properties = query.offset(skip).limit(limit).all()
+    
+    return PropertyListResponse(
+        properties=properties,
+        total=total_count,
+        skip=skip,
+        limit=limit
+    )
+
+@router.get("/my-properties", response_model=PropertyListResponse)
+async def get_my_properties(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0, description="Number of properties to skip (pagination)"),
+    limit: int = Query(20, ge=1, le=100, description="Number of properties to return"),
+    current_user: User = Depends(get_current_user)
+) -> PropertyListResponse:
+    """
+    Get all properties owned by the current authenticated user.
+    
+    Requires authentication - returns only properties from current user.
+    Results are paginated and sorted by newest first.
+    """
+    query = db.query(Property)
+    
+    # Filter by current user
+    query = query.filter(Property.property_owner_id == current_user.id)
+    
+    # Order by newest first
+    query = query.order_by(Property.created_at.desc())
+    
+    # Get total count for pagination
     total_count = query.count()
     
     # Apply pagination
@@ -563,7 +598,7 @@ async def get_my_properties(
     # Order by newest first
     query = query.order_by(Property.created_at.desc())
     
-    # Get total count before pagination
+    # Get total count for pagination
     total_count = query.count()
     
     # Apply pagination

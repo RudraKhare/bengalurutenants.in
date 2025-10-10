@@ -1,5 +1,5 @@
 """
-API endpoints for city and locality management.
+API endprouter = APIRouter(prefix="/v1/cities", tags=["cities"])ints for city and locality management.
 Provides CRUD operations and search functionality for cities and localities.
 """
 
