@@ -69,7 +69,7 @@ export default function DashboardPage() {
       setError(null);
 
       // Fetch user's reviews using predefined API endpoints
-      const reviewsUrl = buildApiUrl('/api/v1/reviews/my-reviews');
+      const reviewsUrl = buildApiUrl(API_ENDPOINTS.REVIEWS.MY_REVIEWS);
       console.log('Fetching reviews from:', reviewsUrl);
       const reviewsResponse = await fetch(reviewsUrl, {
         headers: getAuthHeaders(token),
@@ -77,7 +77,7 @@ export default function DashboardPage() {
       });
 
       // Fetch user's properties using predefined API endpoints
-      const propertiesUrl = buildApiUrl('/api/v1/properties/my-properties');
+      const propertiesUrl = buildApiUrl(API_ENDPOINTS.PROPERTIES.MY_PROPERTIES);
       console.log('Fetching properties from:', propertiesUrl);
       const propertiesResponse = await fetch(propertiesUrl, {
         headers: getAuthHeaders(token),

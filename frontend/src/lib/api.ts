@@ -6,7 +6,7 @@
  */
 
 // Get API base URL from environment or default to localhost
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://bengalurutenants-in.onrender.com';
 
 // Common API request headers
 export const API_HEADERS = {
@@ -59,7 +59,6 @@ export const API_ENDPOINTS = {
     BY_PROPERTY: (propertyId: string) => `/api/v1/reviews?property_id=${propertyId}`,
     DETAIL: (id: string) => `/api/v1/reviews/${id}`,
     MY_REVIEWS: '/api/v1/reviews/my-reviews',
-    MY_PROPERTIES: '/api/v1/reviews/my-properties',
     SEARCH: (params: URLSearchParams) => `/api/v1/reviews?${params.toString()}`,
   },
   
