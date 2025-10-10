@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { buildApiUrl, getAuthHeaders, API_BASE_URL, API_ENDPOINTS } from '@/lib/api';
+import { buildApiUrl, getAuthHeaders, API_BASE_URL, API_ENDPOINTS, API_HEADERS } from '@/lib/api';
 import MobileDashboardView from '@/components/MobileDashboardView';
 import ImageWithLoader from '@/components/ImageWithLoader';
 
